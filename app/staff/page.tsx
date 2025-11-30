@@ -238,6 +238,7 @@ export default function StaffDashboard() {
                         variant="default"
                         size="sm"
                         disabled={patient.status === "disconnected"}
+                        className="cursor-pointer"
                       >
                         {isSubmitted ? "View Details" : "View Live"}
                       </Button>

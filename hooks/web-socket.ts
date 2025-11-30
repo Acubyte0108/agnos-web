@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { connectWS } from "@/lib";
 
 const DASHBOARD_SUMMARY_DEBOUNCE = 600;
@@ -190,12 +190,35 @@ function useStaffDashboard() {
   const [patients, setPatients] = useState<Record<string, PatientInfo>>({});
   const removalTimersRef = useRef<Record<string, number>>({});
 
+  // Generate staff ID synchronously (runs once during component initialization)
+  const staffId = useMemo(() => {
+    if (typeof window === "undefined") return "staff-ssr";
+
+    const storedId = sessionStorage.getItem("staffId");
+    if (storedId) {
+      console.log("[Staff Dashboard] Using stored staff ID:", storedId);
+      return storedId;
+    }
+
+    const newId =
+      crypto && typeof crypto.randomUUID === "function"
+        ? `staff-${crypto.randomUUID()}`
+        : `staff-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+
+    sessionStorage.setItem("staffId", newId);
+    console.log("[Staff Dashboard] Generated new staff ID:", newId);
+    return newId;
+  }, []); // Empty deps means it runs once
+
   // Helper function to schedule removal based on timestamp
   const scheduleRemoval = useCallback(
     (clientId: string, eventTimestamp: number, reason: string) => {
       const REMOVAL_DELAY = 10000; // 10 seconds
+      const MIN_DISPLAY_TIME = 3000; // Minimum 3 seconds display
       const elapsed = Date.now() - eventTimestamp;
-      const remaining = Math.max(0, REMOVAL_DELAY - elapsed);
+      const calculatedRemaining = Math.max(0, REMOVAL_DELAY - elapsed);
+
+      const remaining = Math.max(MIN_DISPLAY_TIME, calculatedRemaining);
 
       console.log(
         `[Staff Dashboard] Scheduling ${reason} removal for "${clientId}" in ${Math.round(
@@ -203,34 +226,21 @@ function useStaffDashboard() {
         )}s`
       );
 
-      // Clear any existing timer
       if (removalTimersRef.current[clientId]) {
         clearTimeout(removalTimersRef.current[clientId]);
       }
 
-      // Schedule removal based on remaining time
-      if (remaining === 0) {
-        // Should be removed immediately
+      removalTimersRef.current[clientId] = window.setTimeout(() => {
+        console.log(
+          `[Staff Dashboard] Removing ${reason} patient "${clientId}"`
+        );
         setPatients((prev) => {
           const updated = { ...prev };
           delete updated[clientId];
           return updated;
         });
         delete removalTimersRef.current[clientId];
-      } else {
-        // Schedule for remaining time
-        removalTimersRef.current[clientId] = window.setTimeout(() => {
-          console.log(
-            `[Staff Dashboard] Removing ${reason} patient "${clientId}"`
-          );
-          setPatients((prev) => {
-            const updated = { ...prev };
-            delete updated[clientId];
-            return updated;
-          });
-          delete removalTimersRef.current[clientId];
-        }, remaining);
-      }
+      }, remaining);
     },
     []
   );
@@ -403,7 +413,7 @@ function useStaffDashboard() {
 
   useWebSocket({
     room: "dashboard",
-    clientId: "staff-dashboard",
+    clientId: staffId, // Now this will always have a value
     logPrefix: "Staff Dashboard",
     onMessage: handleDashboardMessage,
   });

@@ -188,232 +188,145 @@ function useDashboardWebSocket(patientId: string) {
 
 function useStaffDashboard() {
   const [patients, setPatients] = useState<Record<string, PatientInfo>>({});
-  const removalTimersRef = useRef<Record<string, number>>({});
 
-  // Generate staff ID synchronously (runs once during component initialization)
+  // Generate staff ID synchronously
   const staffId = useMemo(() => {
     if (typeof window === "undefined") return "staff-ssr";
-
+    
     const storedId = sessionStorage.getItem("staffId");
     if (storedId) {
       console.log("[Staff Dashboard] Using stored staff ID:", storedId);
       return storedId;
     }
-
+    
     const newId =
       crypto && typeof crypto.randomUUID === "function"
         ? `staff-${crypto.randomUUID()}`
         : `staff-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
-
+    
     sessionStorage.setItem("staffId", newId);
     console.log("[Staff Dashboard] Generated new staff ID:", newId);
     return newId;
-  }, []); // Empty deps means it runs once
+  }, []);
 
-  // Helper function to schedule removal based on timestamp
-  const scheduleRemoval = useCallback(
-    (clientId: string, eventTimestamp: number, reason: string) => {
-      const REMOVAL_DELAY = 10000; // 10 seconds
-      const MIN_DISPLAY_TIME = 3000; // Minimum 3 seconds display
-      const elapsed = Date.now() - eventTimestamp;
-      const calculatedRemaining = Math.max(0, REMOVAL_DELAY - elapsed);
+  const handleDashboardMessage = useCallback((event: MessageEvent) => {
+    try {
+      const msg: WebSocketMessage = JSON.parse(event.data);
+      console.log("[Staff Dashboard] Received message:", msg.type, msg);
 
-      const remaining = Math.max(MIN_DISPLAY_TIME, calculatedRemaining);
+      // Handle initial state (list of patients in dashboard snapshot)
+      if (msg.type === "initialState" && Array.isArray(msg.payload)) {
+        const initialPatients: Record<string, PatientInfo> = {};
 
-      console.log(
-        `[Staff Dashboard] Scheduling ${reason} removal for "${clientId}" in ${Math.round(
-          remaining / 1000
-        )}s`
-      );
+        msg.payload.forEach((patient: any) => {
+          initialPatients[patient.clientId] = {
+            summary: patient.summary || {},
+            ts: patient.lastActivity || Date.now(),
+            isLiveConnected: false,
+            status: patient.status || "online",
+            lastActivity: patient.lastActivity || Date.now(),
+          };
+        });
 
-      if (removalTimersRef.current[clientId]) {
-        clearTimeout(removalTimersRef.current[clientId]);
+        setPatients(initialPatients);
+        console.log(
+          `[Staff Dashboard] Loaded ${msg.payload.length} active patients`,
+          initialPatients
+        );
+        return;
       }
 
-      removalTimersRef.current[clientId] = window.setTimeout(() => {
+      // Handle summary updates (form data)
+      if (msg.type === "summary" && msg.clientId) {
         console.log(
-          `[Staff Dashboard] Removing ${reason} patient "${clientId}"`
+          "[Staff Dashboard] Summary update for:",
+          msg.clientId,
+          msg.payload
         );
-        setPatients((prev) => {
-          const updated = { ...prev };
-          delete updated[clientId];
-          return updated;
-        });
-        delete removalTimersRef.current[clientId];
-      }, remaining);
-    },
-    []
-  );
 
-  const handleDashboardMessage = useCallback(
-    (event: MessageEvent) => {
-      try {
-        const msg: WebSocketMessage = JSON.parse(event.data);
-        console.log("[Staff Dashboard] Received message:", msg.type, msg);
+        setPatients((prev) => ({
+          ...prev,
+          [msg.clientId]: {
+            summary: msg.payload as PatientSummary,
+            ts: msg.timestamp || Date.now(),
+            isLiveConnected: prev[msg.clientId]?.isLiveConnected,
+            status: prev[msg.clientId]?.status || "online",
+            lastActivity: Date.now(),
+          },
+        }));
+      }
 
-        // Handle initial state (list of already-online patients)
-        if (msg.type === "initialState" && Array.isArray(msg.payload)) {
-          const initialPatients: Record<string, PatientInfo> = {};
-
-          msg.payload.forEach((patient: any) => {
-            initialPatients[patient.clientId] = {
-              summary: patient.summary || {},
-              ts: patient.lastActivity || Date.now(),
-              isLiveConnected: false,
-              status: patient.status || "online",
-              lastActivity: patient.lastActivity || Date.now(),
-            };
-
-            // If patient is already submitted or disconnected, schedule removal
-            if (patient.summary?.submitted && patient.summary?.submittedAt) {
-              scheduleRemoval(
-                patient.clientId,
-                patient.summary.submittedAt,
-                "submitted"
-              );
-            } else if (
-              patient.status === "disconnected" &&
-              patient.disconnectedAt
-            ) {
-              scheduleRemoval(
-                patient.clientId,
-                patient.disconnectedAt,
-                "disconnected"
-              );
-            }
-          });
-
-          setPatients(initialPatients);
-          console.log(
-            `[Staff Dashboard] Loaded ${msg.payload.length} active patients`,
-            initialPatients
-          );
-          return;
-        }
-
-        // Handle summary updates (form data)
-        if (msg.type === "summary" && msg.clientId) {
-          console.log(
-            "[Staff Dashboard] Summary update for:",
-            msg.clientId,
-            msg.payload
-          );
-
-          const payload = msg.payload as PatientSummary & {
-            submittedAt?: number;
-          };
-
-          // Clear any pending removal timer if patient is active again
-          if (!payload.submitted) {
-            if (removalTimersRef.current[msg.clientId]) {
-              clearTimeout(removalTimersRef.current[msg.clientId]);
-              delete removalTimersRef.current[msg.clientId];
-            }
-          }
-
-          setPatients((prev) => ({
-            ...prev,
-            [msg.clientId]: {
-              summary: payload,
-              ts: msg.timestamp || Date.now(),
-              isLiveConnected: prev[msg.clientId]?.isLiveConnected,
-              status: prev[msg.clientId]?.status || "online",
-              lastActivity: Date.now(),
-            },
-          }));
-
-          // If patient just submitted, schedule removal
-          if (payload.submitted && payload.submittedAt) {
-            scheduleRemoval(msg.clientId, payload.submittedAt, "submitted");
-          }
-        }
-
-        // Handle status updates
-        if (msg.type === "status" && msg.clientId && msg.state) {
-          console.log(
-            "[Staff Dashboard] Status update:",
-            msg.clientId,
-            msg.state
-          );
-          const validStatuses = ["online", "updating", "idle", "disconnected"];
-          if (validStatuses.includes(msg.state)) {
-            setPatients((prev) => ({
-              ...prev,
-              [msg.clientId]: {
-                summary: prev[msg.clientId]?.summary || {},
-                ts: msg.timestamp || Date.now(),
-                isLiveConnected: prev[msg.clientId]?.isLiveConnected,
-                status: msg.state as PatientStatus,
-                lastActivity: Date.now(),
-              },
-            }));
-          } else {
-            console.warn(
-              `[Staff Dashboard] Invalid status received: ${msg.state}`
-            );
-          }
-        }
-
-        // Handle patient connected
-        if (msg.type === "patientConnected" && msg.clientId) {
-          console.log("[Staff Dashboard] Patient connected:", msg.clientId);
-
-          // Clear any pending removal timer
-          if (removalTimersRef.current[msg.clientId]) {
-            clearTimeout(removalTimersRef.current[msg.clientId]);
-            delete removalTimersRef.current[msg.clientId];
-          }
-
+      // Handle status updates
+      if (msg.type === "status" && msg.clientId && msg.state) {
+        console.log(
+          "[Staff Dashboard] Status update:",
+          msg.clientId,
+          msg.state
+        );
+        const validStatuses = ["online", "updating", "idle", "disconnected"];
+        if (validStatuses.includes(msg.state)) {
           setPatients((prev) => ({
             ...prev,
             [msg.clientId]: {
               summary: prev[msg.clientId]?.summary || {},
               ts: msg.timestamp || Date.now(),
               isLiveConnected: prev[msg.clientId]?.isLiveConnected,
-              status: "online",
+              status: msg.state as PatientStatus,
               lastActivity: Date.now(),
             },
           }));
         }
-
-        // Handle patient disconnected
-        if (msg.type === "patientDisconnected" && msg.clientId) {
-          console.log("[Staff Dashboard] Patient disconnected:", msg.clientId);
-          const disconnectedAt = msg.timestamp || Date.now();
-
-          setPatients((prev) => ({
-            ...prev,
-            [msg.clientId]: {
-              ...prev[msg.clientId],
-              ts: disconnectedAt,
-              status: "disconnected",
-              lastActivity: prev[msg.clientId]?.lastActivity || Date.now(),
-            },
-          }));
-
-          // Schedule removal based on disconnect time
-          scheduleRemoval(msg.clientId, disconnectedAt, "disconnected");
-        }
-      } catch (err) {
-        console.warn("[Staff Dashboard] Invalid message:", err);
       }
-    },
-    [scheduleRemoval]
-  );
 
-  // Cleanup timers on unmount
-  useEffect(() => {
-    return () => {
-      Object.values(removalTimersRef.current).forEach((timerId) => {
-        clearTimeout(timerId);
-      });
-      removalTimersRef.current = {};
-    };
+      // Handle patient connected
+      if (msg.type === "patientConnected" && msg.clientId) {
+        console.log("[Staff Dashboard] Patient connected:", msg.clientId);
+
+        setPatients((prev) => ({
+          ...prev,
+          [msg.clientId]: {
+            summary: prev[msg.clientId]?.summary || {},
+            ts: msg.timestamp || Date.now(),
+            isLiveConnected: prev[msg.clientId]?.isLiveConnected,
+            status: "online",
+            lastActivity: Date.now(),
+          },
+        }));
+      }
+
+      // Handle patient disconnected
+      if (msg.type === "patientDisconnected" && msg.clientId) {
+        console.log("[Staff Dashboard] Patient disconnected:", msg.clientId);
+
+        setPatients((prev) => ({
+          ...prev,
+          [msg.clientId]: {
+            ...prev[msg.clientId],
+            ts: msg.timestamp || Date.now(),
+            status: "disconnected",
+            lastActivity: prev[msg.clientId]?.lastActivity || Date.now(),
+          },
+        }));
+      }
+
+      // NEW: Handle patient removed (server tells us to remove it)
+      if (msg.type === "patientRemoved" && msg.clientId) {
+        console.log("[Staff Dashboard] Patient removed:", msg.clientId);
+
+        setPatients((prev) => {
+          const updated = { ...prev };
+          delete updated[msg.clientId];
+          return updated;
+        });
+      }
+    } catch (err) {
+      console.warn("[Staff Dashboard] Invalid message:", err);
+    }
   }, []);
 
   useWebSocket({
     room: "dashboard",
-    clientId: staffId, // Now this will always have a value
+    clientId: staffId,
     logPrefix: "Staff Dashboard",
     onMessage: handleDashboardMessage,
   });

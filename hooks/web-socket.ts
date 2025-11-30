@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { connectWS } from "@/lib";
 
 const DASHBOARD_SUMMARY_DEBOUNCE = 600;
@@ -189,12 +189,32 @@ function useDashboardWebSocket(patientId: string) {
 function useStaffDashboard() {
   const [patients, setPatients] = useState<Record<string, PatientInfo>>({});
 
+  // Generate staff ID synchronously
+  const staffId = useMemo(() => {
+    if (typeof window === "undefined") return "staff-ssr";
+    
+    const storedId = sessionStorage.getItem("staffId");
+    if (storedId) {
+      console.log("[Staff Dashboard] Using stored staff ID:", storedId);
+      return storedId;
+    }
+    
+    const newId =
+      crypto && typeof crypto.randomUUID === "function"
+        ? `staff-${crypto.randomUUID()}`
+        : `staff-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+    
+    sessionStorage.setItem("staffId", newId);
+    console.log("[Staff Dashboard] Generated new staff ID:", newId);
+    return newId;
+  }, []);
+
   const handleDashboardMessage = useCallback((event: MessageEvent) => {
     try {
       const msg: WebSocketMessage = JSON.parse(event.data);
       console.log("[Staff Dashboard] Received message:", msg.type, msg);
 
-      // Handle initial state (list of already-online patients)
+      // Handle initial state (list of patients in dashboard snapshot)
       if (msg.type === "initialState" && Array.isArray(msg.payload)) {
         const initialPatients: Record<string, PatientInfo> = {};
 
@@ -223,6 +243,7 @@ function useStaffDashboard() {
           msg.clientId,
           msg.payload
         );
+
         setPatients((prev) => ({
           ...prev,
           [msg.clientId]: {
@@ -254,16 +275,13 @@ function useStaffDashboard() {
               lastActivity: Date.now(),
             },
           }));
-        } else {
-          console.warn(
-            `[Staff Dashboard] Invalid status received: ${msg.state}`
-          );
         }
       }
 
       // Handle patient connected
       if (msg.type === "patientConnected" && msg.clientId) {
         console.log("[Staff Dashboard] Patient connected:", msg.clientId);
+
         setPatients((prev) => ({
           ...prev,
           [msg.clientId]: {
@@ -279,6 +297,7 @@ function useStaffDashboard() {
       // Handle patient disconnected
       if (msg.type === "patientDisconnected" && msg.clientId) {
         console.log("[Staff Dashboard] Patient disconnected:", msg.clientId);
+
         setPatients((prev) => ({
           ...prev,
           [msg.clientId]: {
@@ -289,6 +308,17 @@ function useStaffDashboard() {
           },
         }));
       }
+
+      // NEW: Handle patient removed (server tells us to remove it)
+      if (msg.type === "patientRemoved" && msg.clientId) {
+        console.log("[Staff Dashboard] Patient removed:", msg.clientId);
+
+        setPatients((prev) => {
+          const updated = { ...prev };
+          delete updated[msg.clientId];
+          return updated;
+        });
+      }
     } catch (err) {
       console.warn("[Staff Dashboard] Invalid message:", err);
     }
@@ -296,7 +326,7 @@ function useStaffDashboard() {
 
   useWebSocket({
     room: "dashboard",
-    clientId: "staff-dashboard",
+    clientId: staffId,
     logPrefix: "Staff Dashboard",
     onMessage: handleDashboardMessage,
   });

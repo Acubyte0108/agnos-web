@@ -1,17 +1,13 @@
 "use client";
 
-import { useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   useStaffDashboard,
-  usePatientLiveConnections,
-  type PatientSummary,
   type PatientStatus,
 } from "@/hooks/web-socket";
-import { useRouter } from "next/navigation";
 
 function getStatusBadge(status: PatientStatus) {
   const styles = {
@@ -63,36 +59,6 @@ function formatTimeAgo(timestamp: number): string {
 
 export default function StaffDashboard() {
   const { patients, setPatients } = useStaffDashboard();
-  const router = useRouter();
-
-  const handlePatientUpdate = useCallback(
-    (patientId: string, data: PatientSummary, timestamp: number) => {
-      setPatients((prev) => ({
-        ...prev,
-        [patientId]: {
-          summary: {
-            ...prev[patientId]?.summary,
-            ...data,
-          },
-          ts: timestamp,
-          isLiveConnected: true,
-          status: prev[patientId]?.status || "online",
-          lastActivity: timestamp,
-        },
-      }));
-    },
-    [setPatients]
-  );
-
-  const { connectToPatient } = usePatientLiveConnections();
-
-  const handleViewLive = useCallback(
-    (patientId: string) => {
-      // Navigate to the live view page
-      router.push(`/staff/${patientId}`);
-    },
-    [router]
-  );
 
   const patientList = Object.entries(patients).sort(([, a], [, b]) => {
     // Sort by status priority, then by timestamp
@@ -166,17 +132,22 @@ export default function StaffDashboard() {
         <div className="space-y-3">
           {patientList.map(([id, patient]) => {
             const statusStyle = getStatusBadge(patient.status);
-            const isActive =
-              patient.status === "updating" || patient.status === "online";
+            const isSubmitted = patient.summary?.submitted === true;
+            const isDisconnected = patient.status === "disconnected";
+            const isFadingOut = isSubmitted || isDisconnected;
 
             return (
               <Card
                 key={id}
-                className={`p-4 transition-all ${
+                className={`p-4 transition-all duration-300 ${
                   patient.status === "updating"
                     ? "border-blue-300 shadow-md"
+                    : isSubmitted
+                    ? "border-green-400 shadow-lg bg-green-50"
+                    : isDisconnected
+                    ? "opacity-60 border-gray-300 bg-gray-50"
                     : ""
-                }`}
+                } ${isFadingOut ? "animate-fade-out" : ""}`}
               >
                 <div className="flex justify-between items-start gap-4">
                   {/* Patient Info */}
@@ -193,9 +164,17 @@ export default function StaffDashboard() {
                         {patient.summary?.lastName || ""}
                       </h3>
 
-                      {patient.summary?.submitted && (
-                        <Badge className="bg-green-600 text-white">
+                      {/* Submitted badge */}
+                      {isSubmitted && (
+                        <Badge className="bg-green-600 text-white animate-pulse">
                           ✓ Submitted
+                        </Badge>
+                      )}
+
+                      {/* Disconnected indicator - ADD THIS */}
+                      {isDisconnected && !isSubmitted && (
+                        <Badge className="bg-gray-500 text-white">
+                          Disconnected
                         </Badge>
                       )}
                     </div>
@@ -238,40 +217,29 @@ export default function StaffDashboard() {
                     {/* Progress badge */}
                     <div className="text-center min-w-[70px]">
                       <Badge
-                        variant={
-                          patient.summary?.submitted ? "default" : "secondary"
-                        }
+                        variant={isSubmitted ? "default" : "secondary"}
                         className={`w-full justify-center ${
-                          patient.summary?.submitted
+                          isSubmitted
                             ? "bg-green-600"
                             : (patient.summary?.progress ?? 0) >= 75
                             ? "bg-blue-600 text-white"
                             : ""
                         }`}
                       >
-                        {patient.summary?.submitted
+                        {isSubmitted
                           ? "Done"
                           : `${patient.summary?.progress ?? 0}%`}
                       </Badge>
                     </div>
 
                     {/* View Live button */}
-                    <Button
-                      onClick={() => handleViewLive(id)}
-                      disabled={
-                        patient.isLiveConnected ||
-                        patient.status === "disconnected"
-                      }
-                      variant={patient.isLiveConnected ? "outline" : "default"}
-                      size="sm"
-                    >
-                      {patient.isLiveConnected ? "Connected" : "View Live"}
-                    </Button>
-
-                    {/* Detail link */}
                     <Link href={`/staff/${id}`}>
-                      <Button variant="ghost" size="sm">
-                        Details →
+                      <Button
+                        variant="default"
+                        size="sm"
+                        disabled={patient.status === "disconnected"}
+                      >
+                        {isSubmitted ? "View Details" : "View Live"}
                       </Button>
                     </Link>
                   </div>

@@ -2,8 +2,16 @@ import { UseFormReturn } from "react-hook-form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { countries, languages } from "countries-list";
 import { PatientFormValues } from "@/hooks/patient-form";
+import { cn } from "@/lib/utils";
 
 // Get country data
 const countryList = Object.entries(countries).map(([code, country]) => ({
@@ -27,6 +35,7 @@ type PatientFormProps = {
   onKeyDown?: () => void;
   submitButtonText?: string;
   disabled?: boolean;
+  isViewMode?: boolean;
 };
 
 function PatientForm({
@@ -36,9 +45,19 @@ function PatientForm({
   onKeyDown,
   submitButtonText = "Submit Form",
   disabled = false,
+  isViewMode = false,
 }: PatientFormProps) {
+  // Styling for view mode
+  const viewModeClass = isViewMode
+    ? "pointer-events-none opacity-70 select-none"
+    : "";
+  const containerClass = isViewMode ? "pointer-events-none" : "";
+
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+    <form
+      onSubmit={form.handleSubmit(onSubmit)}
+      className={cn("space-y-4", containerClass)}
+    >
       {/* First Name - Required */}
       <div className="space-y-2">
         <Label htmlFor="firstName">
@@ -50,7 +69,9 @@ function PatientForm({
           {...form.register("firstName")}
           onFocus={onInputFocus}
           onKeyDown={onKeyDown}
-          disabled={disabled}
+          disabled={disabled && !isViewMode}
+          className={cn(isViewMode ? viewModeClass : "")}
+          readOnly={isViewMode}
         />
         {form.formState.errors.firstName && (
           <p className="text-sm text-red-500">
@@ -68,7 +89,9 @@ function PatientForm({
           {...form.register("middleName")}
           onFocus={onInputFocus}
           onKeyDown={onKeyDown}
-          disabled={disabled}
+          disabled={disabled && !isViewMode}
+          className={cn(isViewMode ? viewModeClass : "")}
+          readOnly={isViewMode}
         />
         {form.formState.errors.middleName && (
           <p className="text-sm text-red-500">
@@ -88,7 +111,9 @@ function PatientForm({
           {...form.register("lastName")}
           onFocus={onInputFocus}
           onKeyDown={onKeyDown}
-          disabled={disabled}
+          disabled={disabled && !isViewMode}
+          className={cn(isViewMode ? viewModeClass : "")}
+          readOnly={isViewMode}
         />
         {form.formState.errors.lastName && (
           <p className="text-sm text-red-500">
@@ -108,7 +133,9 @@ function PatientForm({
           {...form.register("dateOfBirth")}
           onFocus={onInputFocus}
           onKeyDown={onKeyDown}
-          disabled={disabled}
+          disabled={disabled && !isViewMode}
+          className={cn(isViewMode ? viewModeClass : "")}
+          readOnly={isViewMode}
         />
         {form.formState.errors.dateOfBirth && (
           <p className="text-sm text-red-500">
@@ -117,25 +144,31 @@ function PatientForm({
         )}
       </div>
 
-      {/* Gender - Required */}
+      {/* Gender - Required - UPDATED TO SHADCN SELECT */}
       <div className="space-y-2">
         <Label htmlFor="gender">
           Gender <span className="text-red-500">*</span>
         </Label>
-        <select
-          id="gender"
-          {...form.register("gender")}
-          onFocus={onInputFocus}
-          onChange={onKeyDown}
-          disabled={disabled}
-          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+        <Select
+          value={form.watch("gender") || ""}
+          onValueChange={(value) => {
+            form.setValue("gender", value);
+            onKeyDown?.();
+          }}
+          disabled={disabled && !isViewMode}
         >
-          <option value="">Select gender</option>
-          <option value="male">Male</option>
-          <option value="female">Female</option>
-          <option value="other">Other</option>
-          <option value="prefer-not-to-say">Prefer not to say</option>
-        </select>
+          <SelectTrigger
+            className={cn("w-full", isViewMode ? viewModeClass : "")}
+          >
+            <SelectValue placeholder="Select gender" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="male">Male</SelectItem>
+            <SelectItem value="female">Female</SelectItem>
+            <SelectItem value="other">Other</SelectItem>
+            <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
+          </SelectContent>
+        </Select>
         {form.formState.errors.gender && (
           <p className="text-sm text-red-500">
             {form.formState.errors.gender.message}
@@ -155,7 +188,9 @@ function PatientForm({
           {...form.register("phone")}
           onFocus={onInputFocus}
           onKeyDown={onKeyDown}
-          disabled={disabled}
+          disabled={disabled && !isViewMode}
+          className={cn(isViewMode ? viewModeClass : "")}
+          readOnly={isViewMode}
         />
         {form.formState.errors.phone && (
           <p className="text-sm text-red-500">
@@ -176,7 +211,9 @@ function PatientForm({
           {...form.register("email")}
           onFocus={onInputFocus}
           onKeyDown={onKeyDown}
-          disabled={disabled}
+          disabled={disabled && !isViewMode}
+          className={cn(isViewMode ? viewModeClass : "")}
+          readOnly={isViewMode}
         />
         {form.formState.errors.email && (
           <p className="text-sm text-red-500">
@@ -196,7 +233,9 @@ function PatientForm({
           {...form.register("address")}
           onFocus={onInputFocus}
           onKeyDown={onKeyDown}
-          disabled={disabled}
+          disabled={disabled && !isViewMode}
+          className={cn(isViewMode ? viewModeClass : "")}
+          readOnly={isViewMode}
         />
         {form.formState.errors.address && (
           <p className="text-sm text-red-500">
@@ -205,26 +244,32 @@ function PatientForm({
         )}
       </div>
 
-      {/* Preferred Language - Required */}
+      {/* Preferred Language - Required - UPDATED TO SHADCN SELECT */}
       <div className="space-y-2">
         <Label htmlFor="preferredLanguage">
           Preferred Language <span className="text-red-500">*</span>
         </Label>
-        <select
-          id="preferredLanguage"
-          {...form.register("preferredLanguage")}
-          onFocus={onInputFocus}
-          onChange={onKeyDown}
-          disabled={disabled}
-          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+        <Select
+          value={form.watch("preferredLanguage") || ""}
+          onValueChange={(value) => {
+            form.setValue("preferredLanguage", value);
+            onKeyDown?.();
+          }}
+          disabled={disabled && !isViewMode}
         >
-          <option value="">Select preferred language</option>
-          {languageList.map((lang) => (
-            <option key={lang.code} value={lang.code}>
-              {lang.name}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger
+            className={cn("w-full", isViewMode ? viewModeClass : "")}
+          >
+            <SelectValue placeholder="Select preferred language" />
+          </SelectTrigger>
+          <SelectContent>
+            {languageList.map((lang) => (
+              <SelectItem key={lang.code} value={lang.code}>
+                {lang.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         {form.formState.errors.preferredLanguage && (
           <p className="text-sm text-red-500">
             {form.formState.errors.preferredLanguage.message}
@@ -232,26 +277,32 @@ function PatientForm({
         )}
       </div>
 
-      {/* Nationality - Required */}
+      {/* Nationality - Required - UPDATED TO SHADCN SELECT */}
       <div className="space-y-2">
         <Label htmlFor="nationality">
           Nationality <span className="text-red-500">*</span>
         </Label>
-        <select
-          id="nationality"
-          {...form.register("nationality")}
-          onFocus={onInputFocus}
-          onChange={onKeyDown}
-          disabled={disabled}
-          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+        <Select
+          value={form.watch("nationality") || ""}
+          onValueChange={(value) => {
+            form.setValue("nationality", value);
+            onKeyDown?.();
+          }}
+          disabled={disabled && !isViewMode}
         >
-          <option value="">Select nationality</option>
-          {countryList.map((country) => (
-            <option key={country.code} value={country.code}>
-              {country.name}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger
+            className={cn("w-full", isViewMode ? viewModeClass : "")}
+          >
+            <SelectValue placeholder="Select nationality" />
+          </SelectTrigger>
+          <SelectContent>
+            {countryList.map((country) => (
+              <SelectItem key={country.code} value={country.code}>
+                {country.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         {form.formState.errors.nationality && (
           <p className="text-sm text-red-500">
             {form.formState.errors.nationality.message}
@@ -268,7 +319,9 @@ function PatientForm({
           {...form.register("emergencyContactName")}
           onFocus={onInputFocus}
           onKeyDown={onKeyDown}
-          disabled={disabled}
+          disabled={disabled && !isViewMode}
+          className={cn(isViewMode ? viewModeClass : "")}
+          readOnly={isViewMode}
         />
         {form.formState.errors.emergencyContactName && (
           <p className="text-sm text-red-500">
@@ -288,7 +341,9 @@ function PatientForm({
           {...form.register("emergencyContactRelationship")}
           onFocus={onInputFocus}
           onKeyDown={onKeyDown}
-          disabled={disabled}
+          disabled={disabled && !isViewMode}
+          className={cn(isViewMode ? viewModeClass : "")}
+          readOnly={isViewMode}
         />
         {form.formState.errors.emergencyContactRelationship && (
           <p className="text-sm text-red-500">
@@ -306,7 +361,9 @@ function PatientForm({
           {...form.register("religion")}
           onFocus={onInputFocus}
           onKeyDown={onKeyDown}
-          disabled={disabled}
+          disabled={disabled && !isViewMode}
+          className={cn(isViewMode ? viewModeClass : "")}
+          readOnly={isViewMode}
         />
         {form.formState.errors.religion && (
           <p className="text-sm text-red-500">
@@ -315,7 +372,11 @@ function PatientForm({
         )}
       </div>
 
-      <Button type="submit" className="w-full" disabled={disabled}>
+      <Button
+        type="submit"
+        className={cn("w-full", isViewMode ? "hidden" : "")}
+        disabled={disabled}
+      >
         {submitButtonText}
       </Button>
     </form>

@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ROUTES } from "@/lib/config";
@@ -21,8 +24,16 @@ const roleOptions = [
 ];
 
 export default function Home() {
+  // Clear session storage on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("patientId");
+      sessionStorage.removeItem("staffId");
+    }
+  }, []);
+
   return (
-    <div className="font-sans min-h-screen flex flex-col items-center justify-center p-6 bg-linear-to-br from-blue-50 to-purple-50">
+    <div className="font-sans min-h-screen flex flex-col items-center justify-center p-6 bg-gradient-to-br from-blue-50 to-purple-50">
       <main className="w-full max-w-2xl text-center space-y-8">
         {/* Logo/Branding */}
         <div className="flex justify-center mb-8">

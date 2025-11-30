@@ -1,22 +1,17 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import { Card } from "@/components/ui/card";
+import { ROUTES } from "@/lib/config";
 
 export default function ThankYouPage() {
-  const router = useRouter();
-
-  const handleGoToMain = () => {
+  const handleClearSession = () => {
     // Clear patient ID from session storage
     sessionStorage.removeItem("patientId");
-    
-    // Navigate to main page
-    router.push("/");
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-gradient-to-br from-green-50 to-blue-50">
+    <div className="min-h-screen flex items-center justify-center p-6 bg-linear-to-br from-green-50 to-blue-50">
       <Card className="max-w-md w-full p-8 text-center space-y-6">
         {/* Success Icon */}
         <div className="flex justify-center">
@@ -55,13 +50,13 @@ export default function ThankYouPage() {
         </div>
 
         {/* Action Button */}
-        <Button
-          onClick={handleGoToMain}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-6 text-lg"
-          size="lg"
+        <Link
+          href={ROUTES.HOME}
+          onClick={handleClearSession}
+          className="inline-block w-full bg-blue-600 hover:bg-blue-700 text-white py-6 text-lg rounded-md font-medium transition-colors"
         >
           Go to Main Page
-        </Button>
+        </Link>
 
         {/* Additional Info */}
         <p className="text-xs text-gray-500">

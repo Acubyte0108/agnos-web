@@ -26,42 +26,54 @@ export default function StaffPatientView({
     useState<ActivePatientStatus>("online");
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
 
-  // Initialize form with received data
-  const form = usePatientForm(formData);
+  // Initialize form with empty values
+  const form = usePatientForm();
+
+  // Update form whenever formData changes
+  useEffect(() => {
+    if (Object.keys(formData).length > 0) {
+      console.log("[Staff Live View] Updating form with:", formData);
+
+      // Reset the form with new data
+      form.reset(formData, {
+        keepErrors: false,
+        keepDirty: false,
+        keepIsSubmitted: false,
+        keepTouched: false,
+        keepIsValid: false,
+        keepSubmitCount: false,
+      });
+
+      console.log("[Staff Live View] Form after reset:", form.getValues());
+    }
+  }, [formData, form]);
 
   // Handle incoming WebSocket messages
-  const handleMessage = useCallback(
-    (event: MessageEvent) => {
-      try {
-        const msg: WebSocketMessage = JSON.parse(event.data);
-        console.log("[Staff Live View] Received message:", msg.type, msg);
+  const handleMessage = useCallback((event: MessageEvent) => {
+    try {
+      const msg: WebSocketMessage = JSON.parse(event.data);
+      console.log("[Staff Live View] Received message:", msg.type);
 
-        // Handle full form snapshots
-        if (msg.type === "formSnapshot" && msg.payload) {
-          console.log("[Staff Live View] Setting form data:", msg.payload);
-          const payloadData = msg.payload as Partial<PatientFormValues>;
-          setFormData(payloadData);
-          form.reset(payloadData);
-          setLastUpdate(new Date());
-        }
-        // Handle status updates
-        else if (msg.type === "status" && msg.state) {
-          console.log("[Staff Live View] Status update:", msg.state);
-          setCurrentStatus(msg.state as ActivePatientStatus);
-        }
-        // Handle connected message
-        else if (msg.type === "connected") {
-          console.log("[Staff Live View] Connected to patient room");
-        }
-      } catch (err) {
-        console.warn("[Staff] Invalid message:", err);
+      // Handle full form snapshots
+      if (msg.type === "formSnapshot" && msg.payload) {
+        const payloadData = msg.payload as Partial<PatientFormValues>;
+        console.log("[Staff Live View] Received form data:", payloadData);
+
+        // Update state - the useEffect above will handle form update
+        setFormData(payloadData);
+        setLastUpdate(new Date());
       }
-    },
-    [form]
-  );
-  
+      // Handle status updates
+      else if (msg.type === "status" && msg.state) {
+        setCurrentStatus(msg.state as ActivePatientStatus);
+      }
+    } catch (err) {
+      console.warn("[Staff] Invalid message:", err);
+    }
+  }, []);
+
   // Connect to patient's WebSocket room with message handler
-  const { isConnected, send } = usePatientWebSocket(patientId, {
+  const { isConnected } = usePatientWebSocket(patientId, {
     onMessage: handleMessage,
   });
 
@@ -120,8 +132,8 @@ export default function StaffPatientView({
       {/* Form - Read-only */}
       <PatientForm
         form={form}
-        onSubmit={() => {}} // No-op for staff view
-        disabled={true} // Read-only for staff
+        onSubmit={() => {}}
+        isViewMode={true}
         submitButtonText="Form Preview (Read-only)"
       />
 

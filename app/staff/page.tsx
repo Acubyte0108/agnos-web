@@ -4,10 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import {
-  useStaffDashboard,
-  type PatientStatus,
-} from "@/hooks/web-socket";
+import { useStaffDashboard, PatientStatus } from "@/hooks/use-web-socket";
 
 function getStatusBadge(status: PatientStatus) {
   const styles = {
@@ -80,12 +77,14 @@ export default function StaffDashboard() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
+    <div className="max-w-4xl mx-auto p-4 sm:p-6">
       {/* Header with Stats */}
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold mb-3">Staff Dashboard</h1>
+        <h1 className="text-xl sm:text-2xl font-semibold mb-3">
+          Staff Dashboard
+        </h1>
 
-        <div className="flex items-center gap-3 text-sm">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm">
           <div className="flex items-center gap-2">
             <span className="font-medium">Total:</span>
             <Badge variant="outline">{stats.total}</Badge>
@@ -123,8 +122,8 @@ export default function StaffDashboard() {
 
       {/* Patient List */}
       {patientList.length === 0 ? (
-        <Card className="p-8 text-center text-gray-500">
-          <div className="text-4xl mb-2">👥</div>
+        <Card className="p-6 sm:p-8 text-center text-gray-500">
+          <div className="text-3xl sm:text-4xl mb-2">👥</div>
           <p className="font-medium">No active patients</p>
           <p className="text-sm mt-1">Waiting for form submissions...</p>
         </Card>
@@ -139,7 +138,7 @@ export default function StaffDashboard() {
             return (
               <Card
                 key={id}
-                className={`p-4 transition-all duration-300 ${
+                className={`p-3 sm:p-4 transition-all duration-300 ${
                   patient.status === "updating"
                     ? "border-blue-300 shadow-md"
                     : isSubmitted
@@ -149,41 +148,41 @@ export default function StaffDashboard() {
                     : ""
                 } ${isFadingOut ? "animate-fade-out" : ""}`}
               >
-                <div className="flex justify-between items-start gap-4">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 sm:gap-4">
                   {/* Patient Info */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-2">
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
                       {/* Animated status dot */}
                       <span
                         className={`inline-block w-3 h-3 rounded-full ${statusStyle.dot} ${statusStyle.animation}`}
                         title={statusStyle.label}
                       />
 
-                      <h3 className="text-lg font-semibold truncate">
+                      <h3 className="text-base sm:text-lg font-semibold truncate">
                         {patient.summary?.firstName || "Anonymous"}{" "}
                         {patient.summary?.lastName || ""}
                       </h3>
 
                       {/* Submitted badge */}
                       {isSubmitted && (
-                        <Badge className="bg-green-600 text-white animate-pulse">
+                        <Badge className="bg-green-600 text-white animate-pulse text-xs">
                           ✓ Submitted
                         </Badge>
                       )}
 
-                      {/* Disconnected indicator - ADD THIS */}
+                      {/* Disconnected indicator */}
                       {isDisconnected && !isSubmitted && (
-                        <Badge className="bg-gray-500 text-white">
+                        <Badge className="bg-gray-500 text-white text-xs">
                           Disconnected
                         </Badge>
                       )}
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
                       {/* Status badge */}
                       <Badge
                         variant="outline"
-                        className={`${statusStyle.bg} ${statusStyle.text} border-0`}
+                        className={`${statusStyle.bg} ${statusStyle.text} border-0 text-xs`}
                       >
                         {statusStyle.label}
                       </Badge>
@@ -213,12 +212,12 @@ export default function StaffDashboard() {
                   </div>
 
                   {/* Actions */}
-                  <div className="flex items-center gap-2 flex-shrink-0">
+                  <div className="flex items-center gap-2 sm:gap-2 shrink-0 justify-between sm:justify-start">
                     {/* Progress badge */}
-                    <div className="text-center min-w-[70px]">
+                    <div className="text-center min-w-[60px] sm:min-w-[70px]">
                       <Badge
                         variant={isSubmitted ? "default" : "secondary"}
-                        className={`w-full justify-center ${
+                        className={`w-full justify-center text-xs ${
                           isSubmitted
                             ? "bg-green-600"
                             : (patient.summary?.progress ?? 0) >= 75
@@ -238,8 +237,14 @@ export default function StaffDashboard() {
                         variant="default"
                         size="sm"
                         disabled={patient.status === "disconnected"}
+                        className="cursor-pointer text-xs sm:text-sm"
                       >
-                        {isSubmitted ? "View Details" : "View Live"}
+                        <span className="hidden sm:inline">
+                          {isSubmitted ? "View Details" : "View Live"}
+                        </span>
+                        <span className="sm:hidden">
+                          {isSubmitted ? "Details" : "View"}
+                        </span>
                       </Button>
                     </Link>
                   </div>

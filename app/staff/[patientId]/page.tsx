@@ -5,12 +5,12 @@ import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PatientForm } from "@/components/form/patient-form";
-import { usePatientForm, PatientFormValues } from "@/hooks/patient-form";
+import { usePatientForm, PatientFormValues } from "@/hooks/use-patient-form";
 import {
   usePatientWebSocket,
-  type ActivePatientStatus,
-  type WebSocketMessage,
-} from "@/hooks/web-socket";
+  ActivePatientStatus,
+  WebSocketMessage,
+} from "@/hooks/use-web-socket";
 import { toast } from "sonner"; // ADD THIS
 
 export default function StaffPatientView({

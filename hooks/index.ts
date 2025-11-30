@@ -1,1 +1,1 @@
-export * from "./web-socket";
+export * from "./use-web-socket";

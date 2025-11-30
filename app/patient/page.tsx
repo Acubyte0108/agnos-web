@@ -11,6 +11,7 @@ import {
 } from "@/hooks/web-socket";
 import { PatientForm } from "@/components/form/patient-form";
 import { usePatientForm, PatientFormValues } from "@/hooks/patient-form";
+import { useRouter } from "next/navigation";
 
 const FULL_SNAPSHOT_THRESHOLD = 3;
 const PATIENT_ID_STORAGE_KEY = "patientId";
@@ -57,9 +58,11 @@ export default function PatientPage() {
 
   const activityTimerRef = useRef<number | null>(null);
   const idleTimerRef = useRef<number | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = usePatientForm();
-
+  const router = useRouter();
+  
   // Initialize patient ID on mount
   useEffect(() => {
     setPatientId(generatePatientId());
@@ -208,22 +211,40 @@ export default function PatientPage() {
 
   // Handle form submission
   const onSubmit = useCallback(
-    (values: PatientFormValues) => {
-      // Send submit message to patient room
-      const submitMessage = createWSMessage("submit", patientId, values);
-      patientWS.send(submitMessage);
+    async (values: PatientFormValues) => {
+      setIsSubmitting(true);
+      
+      try {
+        // Send submit message to patient room
+        const submitMessage = createWSMessage("submit", patientId, {
+          ...values,
+          progress: calculateProgress(values),
+        });
+        patientWS.send(submitMessage);
 
-      // Notify dashboard of submission
-      const dashboardMessage = createWSMessage("summary", patientId, {
-        ...values,
-        progress: 100,
-        submitted: true,
-      });
-      dashboardWS.sendImmediate(dashboardMessage);
+        // Notify dashboard of submission
+        const dashboardMessage = createWSMessage("summary", patientId, {
+          firstName: values.firstName,
+          lastName: values.lastName,
+          progress: 100,
+          submitted: true,
+        });
+        dashboardWS.sendImmediate(dashboardMessage);
 
-      alert("Form submitted successfully!");
+        console.log("[Patient] Form submitted successfully");
+
+        // Small delay to ensure WebSocket messages are sent
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Redirect to thank you page
+        router.push("/thank-you");
+      } catch (error) {
+        console.error("[Patient] Error submitting form:", error);
+        alert("Error submitting form. Please try again.");
+        setIsSubmitting(false);
+      }
     },
-    [patientId, patientWS, dashboardWS]
+    [patientId, patientWS, dashboardWS, router]
   );
 
   // Get status badge styling
@@ -269,10 +290,14 @@ export default function PatientPage() {
         onSubmit={onSubmit}
         onInputFocus={handleInputFocus}
         onKeyDown={handleKeyboardInput}
+        disabled={isSubmitting} // ADD THIS
+        submitButtonText={isSubmitting ? "Submitting..." : "Submit Form"} // ADD THIS
       />
 
       <div className="text-xs text-gray-400 text-center">
-        Your activity is monitored in real-time by staff
+        {isSubmitting 
+          ? "Submitting your form..."
+          : "Your activity is monitored in real-time by staff"}
       </div>
     </div>
   );

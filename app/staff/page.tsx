@@ -168,6 +168,7 @@ export default function StaffDashboard() {
             const statusStyle = getStatusBadge(patient.status);
             const isActive =
               patient.status === "updating" || patient.status === "online";
+            const isSubmitted = patient.summary?.submitted === true; // ADD THIS
 
             return (
               <Card
@@ -175,6 +176,8 @@ export default function StaffDashboard() {
                 className={`p-4 transition-all ${
                   patient.status === "updating"
                     ? "border-blue-300 shadow-md"
+                    : isSubmitted
+                    ? "border-green-400 shadow-lg bg-green-50" // ADD THIS
                     : ""
                 }`}
               >
@@ -193,8 +196,9 @@ export default function StaffDashboard() {
                         {patient.summary?.lastName || ""}
                       </h3>
 
-                      {patient.summary?.submitted && (
-                        <Badge className="bg-green-600 text-white">
+                      {/* ADD THIS - Submitted badge */}
+                      {isSubmitted && (
+                        <Badge className="bg-green-600 text-white animate-pulse">
                           ✓ Submitted
                         </Badge>
                       )}
@@ -235,43 +239,32 @@ export default function StaffDashboard() {
 
                   {/* Actions */}
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    {/* Progress badge */}
+                    {/* Progress badge - UPDATED */}
                     <div className="text-center min-w-[70px]">
                       <Badge
-                        variant={
-                          patient.summary?.submitted ? "default" : "secondary"
-                        }
+                        variant={isSubmitted ? "default" : "secondary"}
                         className={`w-full justify-center ${
-                          patient.summary?.submitted
+                          isSubmitted
                             ? "bg-green-600"
                             : (patient.summary?.progress ?? 0) >= 75
                             ? "bg-blue-600 text-white"
                             : ""
                         }`}
                       >
-                        {patient.summary?.submitted
+                        {isSubmitted
                           ? "Done"
                           : `${patient.summary?.progress ?? 0}%`}
                       </Badge>
                     </div>
 
                     {/* View Live button */}
-                    <Button
-                      onClick={() => handleViewLive(id)}
-                      disabled={
-                        patient.isLiveConnected ||
-                        patient.status === "disconnected"
-                      }
-                      variant={patient.isLiveConnected ? "outline" : "default"}
-                      size="sm"
-                    >
-                      {patient.isLiveConnected ? "Connected" : "View Live"}
-                    </Button>
-
-                    {/* Detail link */}
                     <Link href={`/staff/${id}`}>
-                      <Button variant="ghost" size="sm">
-                        Details →
+                      <Button
+                        variant="default"
+                        size="sm"
+                        disabled={patient.status === "disconnected"}
+                      >
+                        {isSubmitted ? "View Details" : "View Live"}
                       </Button>
                     </Link>
                   </div>

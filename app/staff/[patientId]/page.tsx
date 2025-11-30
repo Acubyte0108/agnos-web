@@ -11,6 +11,7 @@ import {
   type ActivePatientStatus,
   type WebSocketMessage,
 } from "@/hooks/web-socket";
+import { toast } from "sonner"; // ADD THIS
 
 export default function StaffPatientView({
   params,
@@ -67,10 +68,30 @@ export default function StaffPatientView({
       else if (msg.type === "status" && msg.state) {
         setCurrentStatus(msg.state as ActivePatientStatus);
       }
+      // UPDATED: Handle submission from patient
+      else if (msg.type === "submit") {
+        const payload = msg.payload as Partial<PatientFormValues>;
+        const patientName = payload.firstName && payload.lastName
+          ? `${payload.firstName} ${payload.lastName}`
+          : patientId.substring(0, 8);
+        
+        console.log("[Staff Live View] Patient submitted form");
+        
+        // Show success toast
+        toast.success("Form Submitted!", {
+          description: `Patient ${patientName} has successfully submitted their form.`,
+          duration: 5000,
+        });
+
+        // Redirect to dashboard after a brief delay
+        setTimeout(() => {
+          router.push("/staff");
+        }, 1000);
+      }
     } catch (err) {
       console.warn("[Staff] Invalid message:", err);
     }
-  }, []);
+  }, [router, patientId]);
 
   // Connect to patient's WebSocket room with message handler
   const { isConnected } = usePatientWebSocket(patientId, {
@@ -132,8 +153,8 @@ export default function StaffPatientView({
       {/* Form - Read-only */}
       <PatientForm
         form={form}
-        onSubmit={() => {}}
-        isViewMode={true}
+        onSubmit={() => {}} // No-op - staff cannot submit
+        isViewMode={true} // Read-only mode
         submitButtonText="Form Preview (Read-only)"
       />
 

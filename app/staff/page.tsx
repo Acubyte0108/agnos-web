@@ -168,18 +168,22 @@ export default function StaffDashboard() {
             const statusStyle = getStatusBadge(patient.status);
             const isActive =
               patient.status === "updating" || patient.status === "online";
-            const isSubmitted = patient.summary?.submitted === true; // ADD THIS
+            const isSubmitted = patient.summary?.submitted === true;
+            const isDisconnected = patient.status === "disconnected";
+            const isFadingOut = isSubmitted || isDisconnected;
 
             return (
               <Card
                 key={id}
-                className={`p-4 transition-all ${
+                className={`p-4 transition-all duration-300 ${
                   patient.status === "updating"
                     ? "border-blue-300 shadow-md"
                     : isSubmitted
-                    ? "border-green-400 shadow-lg bg-green-50" // ADD THIS
+                    ? "border-green-400 shadow-lg bg-green-50"
+                    : isDisconnected
+                    ? "opacity-60 border-gray-300 bg-gray-50"
                     : ""
-                }`}
+                } ${isFadingOut ? "animate-fade-out" : ""}`}
               >
                 <div className="flex justify-between items-start gap-4">
                   {/* Patient Info */}
@@ -196,10 +200,17 @@ export default function StaffDashboard() {
                         {patient.summary?.lastName || ""}
                       </h3>
 
-                      {/* ADD THIS - Submitted badge */}
+                      {/* Submitted badge */}
                       {isSubmitted && (
                         <Badge className="bg-green-600 text-white animate-pulse">
                           ✓ Submitted
+                        </Badge>
+                      )}
+
+                      {/* Disconnected indicator - ADD THIS */}
+                      {isDisconnected && !isSubmitted && (
+                        <Badge className="bg-gray-500 text-white">
+                          Disconnected
                         </Badge>
                       )}
                     </div>
@@ -239,7 +250,7 @@ export default function StaffDashboard() {
 
                   {/* Actions */}
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    {/* Progress badge - UPDATED */}
+                    {/* Progress badge */}
                     <div className="text-center min-w-[70px]">
                       <Badge
                         variant={isSubmitted ? "default" : "secondary"}

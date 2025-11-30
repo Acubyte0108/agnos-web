@@ -8,9 +8,9 @@ import {
   useDashboardWebSocket,
   createWSMessage,
   ActivePatientStatus,
-} from "@/hooks/web-socket";
+} from "@/hooks/use-web-socket";
 import { PatientForm } from "@/components/form/patient-form";
-import { usePatientForm, PatientFormValues } from "@/hooks/patient-form";
+import { usePatientForm, PatientFormValues } from "@/hooks/use-patient-form";
 import { useRouter } from "next/navigation";
 
 const PATIENT_ID_STORAGE_KEY = "patientId";

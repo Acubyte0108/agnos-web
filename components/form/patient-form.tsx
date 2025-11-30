@@ -10,7 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { countries, languages } from "countries-list";
-import { PatientFormValues } from "@/hooks/patient-form";
+import { PatientFormValues } from "@/hooks/use-patient-form";
 import { cn } from "@/lib/utils";
 
 // Get country data

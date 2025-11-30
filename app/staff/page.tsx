@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import {
   useStaffDashboard,
   type PatientStatus,
-} from "@/hooks/web-socket";
+} from "@/hooks/use-web-socket";
 
 function getStatusBadge(status: PatientStatus) {
   const styles = {
@@ -213,7 +213,7 @@ export default function StaffDashboard() {
                   </div>
 
                   {/* Actions */}
-                  <div className="flex items-center gap-2 flex-shrink-0">
+                  <div className="flex items-center gap-2 shrink-0">
                     {/* Progress badge */}
                     <div className="text-center min-w-[70px]">
                       <Badge

@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { useStaffDashboard, type PatientStatus } from "@/hooks/use-web-socket";
+import { useStaffDashboard, PatientStatus } from "@/hooks/use-web-socket";
 
 function getStatusBadge(status: PatientStatus) {
   const styles = {

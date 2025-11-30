@@ -8,8 +8,8 @@ import { PatientForm } from "@/components/form/patient-form";
 import { usePatientForm, PatientFormValues } from "@/hooks/use-patient-form";
 import {
   usePatientWebSocket,
-  type ActivePatientStatus,
-  type WebSocketMessage,
+  ActivePatientStatus,
+  WebSocketMessage,
 } from "@/hooks/use-web-socket";
 import { toast } from "sonner"; // ADD THIS
 

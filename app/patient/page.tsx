@@ -1,11 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { UseFormReturn } from "react-hook-form";
 import { Badge } from "@/components/ui/badge";
 import {
   usePatientWebSocket,
@@ -13,15 +9,8 @@ import {
   createWSMessage,
   ActivePatientStatus,
 } from "@/hooks/web-socket";
-
-const formSchema = z.object({
-  firstName: z.string().min(1, "First name is required"),
-  lastName: z.string().min(1, "Last name is required"),
-  phone: z.string().min(5, "Phone must be at least 5 characters"),
-  email: z.string().email("Invalid email").optional().or(z.literal("")),
-});
-
-type FormValues = z.infer<typeof formSchema>;
+import { PatientForm } from "@/components/form/patient-form";
+import { usePatientForm, PatientFormValues } from "@/hooks/patient-form";
 
 const FULL_SNAPSHOT_THRESHOLD = 3;
 const PATIENT_ID_STORAGE_KEY = "patientId";
@@ -43,15 +32,22 @@ function generatePatientId(): string {
   return newId;
 }
 
-function calculateProgress(values: Partial<FormValues>): number {
-  const fields: (keyof FormValues)[] = [
+function calculateProgress(values: Partial<PatientFormValues>): number {
+  // List of required fields (excluding optional fields)
+  const requiredFields: (keyof PatientFormValues)[] = [
     "firstName",
     "lastName",
+    "dateOfBirth",
+    "gender",
     "phone",
     "email",
+    "address",
+    "preferredLanguage",
+    "nationality",
   ];
-  const filledCount = fields.filter((field) => values[field]).length;
-  return Math.round((filledCount / fields.length) * 100);
+
+  const filledCount = requiredFields.filter((field) => values[field]).length;
+  return Math.round((filledCount / requiredFields.length) * 100);
 }
 
 export default function PatientPage() {
@@ -62,10 +58,7 @@ export default function PatientPage() {
   const activityTimerRef = useRef<number | null>(null);
   const idleTimerRef = useRef<number | null>(null);
 
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: { firstName: "", lastName: "", phone: "", email: "" },
-  });
+  const form = usePatientForm();
 
   // Initialize patient ID on mount
   useEffect(() => {
@@ -171,7 +164,7 @@ export default function PatientPage() {
 
   // Send full snapshot to patient room
   const sendFullSnapshot = useCallback(
-    (values: FormValues) => {
+    (values: PatientFormValues) => {
       const message = createWSMessage("formSnapshot", patientId, values);
       patientWS.send(message);
     },
@@ -180,7 +173,7 @@ export default function PatientPage() {
 
   // Send lightweight summary to dashboard
   const sendDashboardSummary = useCallback(
-    (values: Partial<FormValues>) => {
+    (values: Partial<PatientFormValues>) => {
       const summary = {
         firstName: values.firstName || null,
         lastName: values.lastName || null,
@@ -204,7 +197,7 @@ export default function PatientPage() {
       // Send full snapshot if enough fields are filled
       const filledCount = Object.values(values).filter(Boolean).length;
       if (filledCount >= FULL_SNAPSHOT_THRESHOLD) {
-        sendFullSnapshot(values as FormValues);
+        sendFullSnapshot(values as PatientFormValues);
       }
     });
 
@@ -213,7 +206,7 @@ export default function PatientPage() {
 
   // Handle form submission
   const onSubmit = useCallback(
-    (values: FormValues) => {
+    (values: PatientFormValues) => {
       // Send submit message to patient room
       const submitMessage = createWSMessage("submit", patientId, values);
       patientWS.send(submitMessage);
@@ -269,72 +262,12 @@ export default function PatientPage() {
         </div>
       </div>
 
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <div className="space-y-2">
-          <Input
-            placeholder="First name"
-            {...form.register("firstName")}
-            aria-label="First name"
-            onFocus={handleInputFocus}
-            onKeyDown={handleKeyboardInput}
-          />
-          {form.formState.errors.firstName && (
-            <p className="text-sm text-red-500">
-              {form.formState.errors.firstName.message}
-            </p>
-          )}
-        </div>
-
-        <div className="space-y-2">
-          <Input
-            placeholder="Last name"
-            {...form.register("lastName")}
-            aria-label="Last name"
-            onFocus={handleInputFocus}
-            onKeyDown={handleKeyboardInput}
-          />
-          {form.formState.errors.lastName && (
-            <p className="text-sm text-red-500">
-              {form.formState.errors.lastName.message}
-            </p>
-          )}
-        </div>
-
-        <div className="space-y-2">
-          <Input
-            placeholder="Phone"
-            {...form.register("phone")}
-            aria-label="Phone"
-            onFocus={handleInputFocus}
-            onKeyDown={handleKeyboardInput}
-          />
-          {form.formState.errors.phone && (
-            <p className="text-sm text-red-500">
-              {form.formState.errors.phone.message}
-            </p>
-          )}
-        </div>
-
-        <div className="space-y-2">
-          <Input
-            placeholder="Email (optional)"
-            type="email"
-            {...form.register("email")}
-            aria-label="Email"
-            onFocus={handleInputFocus}
-            onKeyDown={handleKeyboardInput}
-          />
-          {form.formState.errors.email && (
-            <p className="text-sm text-red-500">
-              {form.formState.errors.email.message}
-            </p>
-          )}
-        </div>
-
-        <Button type="submit" className="w-full">
-          Submit Form
-        </Button>
-      </form>
+      <PatientForm
+        form={form as UseFormReturn<PatientFormValues>}
+        onSubmit={onSubmit}
+        onInputFocus={handleInputFocus}
+        onKeyDown={handleKeyboardInput}
+      />
 
       <div className="text-xs text-gray-400 text-center">
         Your activity is monitored in real-time by staff

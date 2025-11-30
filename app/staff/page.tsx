@@ -11,6 +11,7 @@ import {
   type PatientSummary,
   type PatientStatus,
 } from "@/hooks/web-socket";
+import { useRouter } from "next/navigation";
 
 function getStatusBadge(status: PatientStatus) {
   const styles = {
@@ -62,6 +63,7 @@ function formatTimeAgo(timestamp: number): string {
 
 export default function StaffDashboard() {
   const { patients, setPatients } = useStaffDashboard();
+  const router = useRouter();
 
   const handlePatientUpdate = useCallback(
     (patientId: string, data: PatientSummary, timestamp: number) => {
@@ -86,18 +88,10 @@ export default function StaffDashboard() {
 
   const handleViewLive = useCallback(
     (patientId: string) => {
-      connectToPatient(patientId, handlePatientUpdate);
-
-      // Update UI to show connected state
-      setPatients((prev) => ({
-        ...prev,
-        [patientId]: {
-          ...prev[patientId],
-          isLiveConnected: true,
-        },
-      }));
+      // Navigate to the live view page
+      router.push(`/staff/${patientId}`);
     },
-    [connectToPatient, handlePatientUpdate, setPatients]
+    [router]
   );
 
   const patientList = Object.entries(patients).sort(([, a], [, b]) => {

@@ -195,10 +195,12 @@ export default function PatientPage() {
       sendDashboardSummary(values);
 
       // Send full snapshot if enough fields are filled
-      const filledCount = Object.values(values).filter(Boolean).length;
-      if (filledCount >= FULL_SNAPSHOT_THRESHOLD) {
-        sendFullSnapshot(values as PatientFormValues);
-      }
+      // const filledCount = Object.values(values).filter(Boolean).length;
+      // if (filledCount >= FULL_SNAPSHOT_THRESHOLD) {
+      //   sendFullSnapshot(values as PatientFormValues);
+      // }
+
+      sendFullSnapshot(values as PatientFormValues);
     });
 
     return () => subscription.unsubscribe();

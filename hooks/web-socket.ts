@@ -121,11 +121,23 @@ function useWebSocket({
   return { send, isConnected, wsRef };
 }
 
-function usePatientWebSocket(patientId: string) {
+function usePatientWebSocket(
+  patientId: string,
+  options?: {
+    onMessage?: (event: MessageEvent) => void;
+    onOpen?: (ws: WebSocket) => void;
+    onError?: (error: Event) => void;
+    onClose?: () => void;
+  }
+) {
   return useWebSocket({
     room: patientId,
     clientId: patientId,
     logPrefix: "Patient WS",
+    onMessage: options?.onMessage,
+    onOpen: options?.onOpen,
+    onError: options?.onError,
+    onClose: options?.onClose,
   });
 }
 
@@ -180,14 +192,15 @@ function useStaffDashboard() {
   const handleDashboardMessage = useCallback((event: MessageEvent) => {
     try {
       const msg: WebSocketMessage = JSON.parse(event.data);
+      console.log("[Staff Dashboard] Received message:", msg.type, msg);
 
-      // NEW: Handle initial state (list of already-online patients)
+      // Handle initial state (list of already-online patients)
       if (msg.type === "initialState" && Array.isArray(msg.payload)) {
         const initialPatients: Record<string, PatientInfo> = {};
 
         msg.payload.forEach((patient: any) => {
           initialPatients[patient.clientId] = {
-            summary: {},
+            summary: patient.summary || {},
             ts: patient.lastActivity || Date.now(),
             isLiveConnected: false,
             status: patient.status || "online",
@@ -197,19 +210,26 @@ function useStaffDashboard() {
 
         setPatients(initialPatients);
         console.log(
-          `[Staff Dashboard] Loaded ${msg.payload.length} active patients`
+          `[Staff Dashboard] Loaded ${msg.payload.length} active patients`,
+          initialPatients
         );
         return;
       }
 
+      // Handle summary updates (form data)
       if (msg.type === "summary" && msg.clientId) {
+        console.log(
+          "[Staff Dashboard] Summary update for:",
+          msg.clientId,
+          msg.payload
+        );
         setPatients((prev) => ({
           ...prev,
           [msg.clientId]: {
             summary: msg.payload as PatientSummary,
             ts: msg.timestamp || Date.now(),
             isLiveConnected: prev[msg.clientId]?.isLiveConnected,
-            status: prev[msg.clientId]?.status || "online", // Preserve existing status
+            status: prev[msg.clientId]?.status || "online",
             lastActivity: Date.now(),
           },
         }));
@@ -217,7 +237,11 @@ function useStaffDashboard() {
 
       // Handle status updates
       if (msg.type === "status" && msg.clientId && msg.state) {
-        // Only update if state is a valid status
+        console.log(
+          "[Staff Dashboard] Status update:",
+          msg.clientId,
+          msg.state
+        );
         const validStatuses = ["online", "updating", "idle", "disconnected"];
         if (validStatuses.includes(msg.state)) {
           setPatients((prev) => ({
@@ -239,6 +263,7 @@ function useStaffDashboard() {
 
       // Handle patient connected
       if (msg.type === "patientConnected" && msg.clientId) {
+        console.log("[Staff Dashboard] Patient connected:", msg.clientId);
         setPatients((prev) => ({
           ...prev,
           [msg.clientId]: {
@@ -253,6 +278,7 @@ function useStaffDashboard() {
 
       // Handle patient disconnected
       if (msg.type === "patientDisconnected" && msg.clientId) {
+        console.log("[Staff Dashboard] Patient disconnected:", msg.clientId);
         setPatients((prev) => ({
           ...prev,
           [msg.clientId]: {

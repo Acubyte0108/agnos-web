@@ -41,7 +41,7 @@ export default function ThankYouPage() {
         <div className="space-y-2">
           <h1 className="text-3xl font-bold text-gray-900">Thank You!</h1>
           <p className="text-gray-600">
-            Your form has been submitted successfully. We've received your
+            Your form has been submitted successfully. We&apos;ve received your
             information and will process it shortly.
           </p>
         </div>
@@ -50,7 +50,7 @@ export default function ThankYouPage() {
         <div className="bg-gray-50 rounded-lg p-4 text-sm text-gray-700">
           <p>
             You will receive a confirmation email shortly. If you have any
-            questions, please don't hesitate to contact our support team.
+            questions, please don&apos;t hesitate to contact our support team.
           </p>
         </div>
 

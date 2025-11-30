@@ -13,7 +13,6 @@ import { PatientForm } from "@/components/form/patient-form";
 import { usePatientForm, PatientFormValues } from "@/hooks/patient-form";
 import { useRouter } from "next/navigation";
 
-const FULL_SNAPSHOT_THRESHOLD = 3;
 const PATIENT_ID_STORAGE_KEY = "patientId";
 const IDLE_TIMEOUT = 30000; // 30 seconds
 const ONLINE_TIMEOUT = 2000; // 2 seconds
@@ -62,7 +61,7 @@ export default function PatientPage() {
 
   const form = usePatientForm();
   const router = useRouter();
-  
+
   // Initialize patient ID on mount
   useEffect(() => {
     setPatientId(generatePatientId());

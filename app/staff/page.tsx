@@ -1,17 +1,13 @@
 "use client";
 
-import { useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   useStaffDashboard,
-  usePatientLiveConnections,
-  type PatientSummary,
   type PatientStatus,
 } from "@/hooks/web-socket";
-import { useRouter } from "next/navigation";
 
 function getStatusBadge(status: PatientStatus) {
   const styles = {
@@ -63,36 +59,6 @@ function formatTimeAgo(timestamp: number): string {
 
 export default function StaffDashboard() {
   const { patients, setPatients } = useStaffDashboard();
-  const router = useRouter();
-
-  const handlePatientUpdate = useCallback(
-    (patientId: string, data: PatientSummary, timestamp: number) => {
-      setPatients((prev) => ({
-        ...prev,
-        [patientId]: {
-          summary: {
-            ...prev[patientId]?.summary,
-            ...data,
-          },
-          ts: timestamp,
-          isLiveConnected: true,
-          status: prev[patientId]?.status || "online",
-          lastActivity: timestamp,
-        },
-      }));
-    },
-    [setPatients]
-  );
-
-  const { connectToPatient } = usePatientLiveConnections();
-
-  const handleViewLive = useCallback(
-    (patientId: string) => {
-      // Navigate to the live view page
-      router.push(`/staff/${patientId}`);
-    },
-    [router]
-  );
 
   const patientList = Object.entries(patients).sort(([, a], [, b]) => {
     // Sort by status priority, then by timestamp
@@ -166,8 +132,6 @@ export default function StaffDashboard() {
         <div className="space-y-3">
           {patientList.map(([id, patient]) => {
             const statusStyle = getStatusBadge(patient.status);
-            const isActive =
-              patient.status === "updating" || patient.status === "online";
             const isSubmitted = patient.summary?.submitted === true;
             const isDisconnected = patient.status === "disconnected";
             const isFadingOut = isSubmitted || isDisconnected;

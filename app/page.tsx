@@ -33,17 +33,17 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="font-sans min-h-screen flex flex-col items-center justify-center p-6 bg-gradient-to-br from-blue-50 to-purple-50">
+    <div className="font-sans min-h-screen flex flex-col items-center justify-center p-6 bg-linear-to-br from-blue-50 to-purple-50">
       <main className="w-full max-w-2xl text-center space-y-8">
         {/* Logo/Branding */}
         <div className="flex justify-center mb-8">
           <div className="relative">
             <Image
               className="dark:invert"
-              src="/next.svg"
+              src="/hospital-icon.png"
               alt="Agnos logo"
-              width={180}
-              height={38}
+              width={100}
+              height={100}
               priority
             />
           </div>
@@ -97,31 +97,6 @@ export default function Home() {
           <p className="text-xs text-gray-500 text-center mt-6">
             You can change your role at any time from the main page
           </p>
-        </div>
-
-        {/* Features */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-8">
-          <div className="bg-white/50 backdrop-blur p-4 rounded-lg">
-            <div className="text-3xl mb-2">⚡</div>
-            <h3 className="font-semibold mb-1">Real-time Updates</h3>
-            <p className="text-sm text-gray-600">
-              Monitor form progress as patients fill them out
-            </p>
-          </div>
-          <div className="bg-white/50 backdrop-blur p-4 rounded-lg">
-            <div className="text-3xl mb-2">🔒</div>
-            <h3 className="font-semibold mb-1">Secure & Private</h3>
-            <p className="text-sm text-gray-600">
-              Your data is encrypted and protected
-            </p>
-          </div>
-          <div className="bg-white/50 backdrop-blur p-4 rounded-lg">
-            <div className="text-3xl mb-2">📊</div>
-            <h3 className="font-semibold mb-1">Staff Dashboard</h3>
-            <p className="text-sm text-gray-600">
-              Track multiple patients simultaneously
-            </p>
-          </div>
         </div>
       </main>
 

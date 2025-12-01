@@ -8,10 +8,11 @@ import { PatientForm } from "@/components/form/patient-form";
 import { usePatientForm, PatientFormValues } from "@/hooks/use-patient-form";
 import {
   usePatientWebSocket,
-  ActivePatientStatus,
+  PatientStatus,
   WebSocketMessage,
 } from "@/hooks/use-web-socket";
-import { toast } from "sonner"; // ADD THIS
+import { toast } from "sonner";
+import { StatusBadge } from "@/components/status-badge";
 
 export default function StaffPatientView({
   params,
@@ -23,19 +24,15 @@ export default function StaffPatientView({
   const router = useRouter();
 
   const [formData, setFormData] = useState<Partial<PatientFormValues>>({});
-  const [currentStatus, setCurrentStatus] =
-    useState<ActivePatientStatus>("online");
+  const [currentStatus, setCurrentStatus] = useState<PatientStatus>("online");
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
 
-  // Initialize form with empty values
   const form = usePatientForm();
 
   // Update form whenever formData changes
   useEffect(() => {
     if (Object.keys(formData).length > 0) {
       console.log("[Staff Live View] Updating form with:", formData);
-
-      // Reset the form with new data
       form.reset(formData, {
         keepErrors: false,
         keepDirty: false,
@@ -44,87 +41,66 @@ export default function StaffPatientView({
         keepIsValid: false,
         keepSubmitCount: false,
       });
-
-      console.log("[Staff Live View] Form after reset:", form.getValues());
     }
   }, [formData, form]);
 
   // Handle incoming WebSocket messages
-  const handleMessage = useCallback((event: MessageEvent) => {
-    try {
-      const msg: WebSocketMessage = JSON.parse(event.data);
-      console.log("[Staff Live View] Received message:", msg.type);
+  const handleMessage = useCallback(
+    (event: MessageEvent) => {
+      try {
+        const msg: WebSocketMessage = JSON.parse(event.data);
+        console.log("[Staff Live View] Received message:", msg.type);
 
-      // Handle full form snapshots
-      if (msg.type === "formSnapshot" && msg.payload) {
-        const payloadData = msg.payload as Partial<PatientFormValues>;
-        console.log("[Staff Live View] Received form data:", payloadData);
+        // Handle full form snapshots
+        if (msg.type === "formSnapshot" && msg.payload) {
+          const payloadData = msg.payload as Partial<PatientFormValues>;
+          console.log("[Staff Live View] Received form data:", payloadData);
+          setFormData(payloadData);
+          setLastUpdate(new Date());
+        }
+        // Handle status updates (including disconnected!)
+        else if (msg.type === "status" && msg.state) {
+          const newStatus = msg.state as PatientStatus;
+          console.log("[Staff Live View] Status update:", newStatus);
+          setCurrentStatus(newStatus);
+        }
 
-        // Update state - the useEffect above will handle form update
-        setFormData(payloadData);
-        setLastUpdate(new Date());
+        // Handle submission from patient
+        else if (msg.type === "submit") {
+          const payload = msg.payload as Partial<PatientFormValues>;
+          const patientName =
+            payload.firstName && payload.lastName
+              ? `${payload.firstName} ${payload.lastName}`
+              : patientId.substring(0, 8);
+
+          console.log("[Staff Live View] Patient submitted form");
+
+          // Dismiss any existing success toasts before showing new one
+          toast.dismiss();
+
+          toast.success("Form Submitted!", {
+            description: `Patient ${patientName} has successfully submitted their form.`,
+            duration: 5000,
+          });
+
+          setTimeout(() => {
+            router.push("/staff");
+          }, 1000);
+        }
+      } catch (err) {
+        console.warn("[Staff Live View] Invalid message:", err);
       }
-      // Handle status updates
-      else if (msg.type === "status" && msg.state) {
-        setCurrentStatus(msg.state as ActivePatientStatus);
-      }
-      // UPDATED: Handle submission from patient
-      else if (msg.type === "submit") {
-        const payload = msg.payload as Partial<PatientFormValues>;
-        const patientName = payload.firstName && payload.lastName
-          ? `${payload.firstName} ${payload.lastName}`
-          : patientId.substring(0, 8);
-        
-        console.log("[Staff Live View] Patient submitted form");
-        
-        // Show success toast
-        toast.success("Form Submitted!", {
-          description: `Patient ${patientName} has successfully submitted their form.`,
-          duration: 5000,
-        });
+    },
+    [router, patientId, form]
+  );
 
-        // Redirect to dashboard after a brief delay
-        setTimeout(() => {
-          router.push("/staff");
-        }, 1000);
-      }
-    } catch (err) {
-      console.warn("[Staff] Invalid message:", err);
-    }
-  }, [router, patientId]);
-
-  // Connect to patient's WebSocket room with message handler
+  // Connect to patient's WebSocket room
   const { isConnected } = usePatientWebSocket(patientId, {
     onMessage: handleMessage,
   });
 
-  // Get status badge styling
-  const getStatusStyle = (status: ActivePatientStatus) => {
-    const styles = {
-      updating: {
-        bg: "bg-blue-100",
-        text: "text-blue-800",
-        label: "✏️ Typing",
-      },
-      online: {
-        bg: "bg-green-100",
-        text: "text-green-800",
-        label: "🟢 Online",
-      },
-      idle: {
-        bg: "bg-yellow-100",
-        text: "text-yellow-800",
-        label: "💤 Idle",
-      },
-    };
-    return styles[status];
-  };
-
-  const statusStyle = getStatusStyle(currentStatus);
-
   return (
     <div className="max-w-lg mx-auto p-6 space-y-6">
-      {/* Header */}
       <div>
         <div className="flex items-center justify-between mb-2">
           <h1 className="text-2xl font-semibold">Staff Live View</h1>
@@ -134,12 +110,8 @@ export default function StaffPatientView({
         </div>
         <div className="flex items-center gap-2">
           <p className="text-sm text-gray-500">Patient ID: {patientId}</p>
-          <Badge
-            className={`${statusStyle.bg} ${statusStyle.text} border-0 text-xs`}
-          >
-            {statusStyle.label}
-          </Badge>
-          {isConnected() && (
+          <StatusBadge status={currentStatus} />
+          {isConnected() && currentStatus !== "disconnected" && (
             <Badge className="bg-green-100 text-green-800 border-0 text-xs">
               🔗 Connected
             </Badge>
@@ -150,11 +122,10 @@ export default function StaffPatientView({
         </p>
       </div>
 
-      {/* Form - Read-only */}
       <PatientForm
         form={form}
-        onSubmit={() => {}} // No-op - staff cannot submit
-        isViewMode={true} // Read-only mode
+        onSubmit={() => {}}
+        isViewMode={true}
         submitButtonText="Form Preview (Read-only)"
       />
 

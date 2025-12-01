@@ -252,7 +252,7 @@ export default function PatientPage() {
       updating: {
         bg: "bg-blue-100",
         text: "text-blue-800",
-        label: "✏️ Typing",
+        label: "✏️ Updating",
       },
       online: {
         bg: "bg-green-100",

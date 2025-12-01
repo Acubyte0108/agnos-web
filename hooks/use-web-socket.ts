@@ -72,10 +72,12 @@ function useWebSocket({
   logPrefix = "WS",
 }: UseWebSocketOptions) {
   const wsRef = useRef<WebSocket | null>(null);
+  const isUnmountingRef = useRef(false);
 
   useEffect(() => {
     if (!clientId) return;
 
+    isUnmountingRef.current = false;
     const ws = connectWS(room, clientId);
     wsRef.current = ws;
 
@@ -85,12 +87,31 @@ function useWebSocket({
     };
 
     ws.onerror = (error) => {
-      console.error(`[${logPrefix}] Error:`, error);
-      onError?.(error);
+      // Ignore errors during intentional unmount
+      if (isUnmountingRef.current) {
+        return;
+      }
+
+      // Only log real errors
+      if (
+        ws.readyState !== WebSocket.CLOSING &&
+        ws.readyState !== WebSocket.CLOSED
+      ) {
+        console.error(`[${logPrefix}] WebSocket error:`, error);
+        onError?.(error);
+      }
     };
 
-    ws.onclose = () => {
-      console.log(`[${logPrefix}] Disconnected`);
+    ws.onclose = (event) => {
+      if (isUnmountingRef.current) {
+        console.log(`[${logPrefix}] Closed on unmount (normal)`);
+      } else if (event.code === 1000) {
+        console.log(`[${logPrefix}] Closed normally`);
+      } else {
+        console.warn(
+          `[${logPrefix}] Closed unexpectedly - Code: ${event.code}`
+        );
+      }
       onClose?.();
     };
 
@@ -99,7 +120,13 @@ function useWebSocket({
     }
 
     return () => {
-      ws.close();
+      isUnmountingRef.current = true;
+      if (
+        ws.readyState === WebSocket.OPEN ||
+        ws.readyState === WebSocket.CONNECTING
+      ) {
+        ws.close(1000, "Navigation");
+      }
     };
   }, [room, clientId, onOpen, onMessage, onError, onClose, logPrefix]);
 
@@ -192,18 +219,18 @@ function useStaffDashboard() {
   // Generate staff ID synchronously
   const staffId = useMemo(() => {
     if (typeof window === "undefined") return "staff-ssr";
-    
+
     const storedId = sessionStorage.getItem("staffId");
     if (storedId) {
       console.log("[Staff Dashboard] Using stored staff ID:", storedId);
       return storedId;
     }
-    
+
     const newId =
       crypto && typeof crypto.randomUUID === "function"
         ? `staff-${crypto.randomUUID()}`
         : `staff-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
-    
+
     sessionStorage.setItem("staffId", newId);
     console.log("[Staff Dashboard] Generated new staff ID:", newId);
     return newId;

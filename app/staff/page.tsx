@@ -191,7 +191,7 @@ export default function StaffDashboard() {
                           size="sm"
                           className="cursor-pointer text-xs sm:text-sm"
                         >
-                          <span className="hidden sm:inline">View Live</span>
+                          <span>View Live</span>
                         </Button>
                       </Link>
                     ) : (
@@ -201,7 +201,7 @@ export default function StaffDashboard() {
                         disabled
                         className="text-xs sm:text-sm cursor-not-allowed"
                       >
-                        <span className="hidden sm:inline">View Live</span>
+                        <span>View Live</span>
                       </Button>
                     )}
                   </div>

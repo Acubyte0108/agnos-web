@@ -35,17 +35,11 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 - **Live View**: Real-time form monitoring for staff members
 - **WebSocket Integration**: Instant updates and status changes
 
-## Project Structure
-
-- `/app` - Next.js app router pages
-- `/components` - Reusable React components
-- `/hooks` - Custom React hooks including WebSocket management
-- `/lib` - Utility functions and configuration
-
 ## Tech Stack
 
 - Next.js 15
 - React 19
 - TypeScript
 - Tailwind CSS
+- Shadcn UI
 - WebSocket for real-time communication

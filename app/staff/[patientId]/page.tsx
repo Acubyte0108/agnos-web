@@ -66,7 +66,7 @@ export default function StaffPatientView({
         // Show toast for disconnection
         if (newStatus === "disconnected") {
           toast.warning("Patient Disconnected", {
-            description: "The patient has left the session.",
+            description: "The patient has left the session or refreshed the page.",
             duration: 5000,
           });
         }

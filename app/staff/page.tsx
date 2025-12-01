@@ -134,7 +134,7 @@ export default function StaffDashboard() {
             const isSubmitted = patient.summary?.submitted === true;
             const isDisconnected = patient.status === "disconnected";
             const isFadingOut = isSubmitted || isDisconnected;
-
+            
             return (
               <Card
                 key={id}

@@ -36,7 +36,7 @@ function generatePatientId(): string {
 // Load saved form data from sessionStorage
 function loadSavedFormData(): Partial<PatientFormValues> | null {
   if (typeof window === "undefined") return null;
-  
+
   try {
     const saved = sessionStorage.getItem(PATIENT_FORM_DATA_KEY);
     if (saved) {
@@ -52,7 +52,7 @@ function loadSavedFormData(): Partial<PatientFormValues> | null {
 // Save form data to sessionStorage
 function saveFormData(data: Partial<PatientFormValues>) {
   if (typeof window === "undefined") return;
-  
+
   try {
     sessionStorage.setItem(PATIENT_FORM_DATA_KEY, JSON.stringify(data));
   } catch (error) {
@@ -63,7 +63,7 @@ function saveFormData(data: Partial<PatientFormValues>) {
 // Clear saved form data from sessionStorage
 function clearSavedFormData() {
   if (typeof window === "undefined") return;
-  
+
   try {
     sessionStorage.removeItem(PATIENT_FORM_DATA_KEY);
     console.log("[Patient] Cleared form data");
@@ -93,14 +93,12 @@ export default function PatientPage() {
   const [patientId, setPatientId] = useState<string>("");
   const [currentStatus, setCurrentStatus] =
     useState<ActivePatientStatus>("online");
-
   const activityTimerRef = useRef<number | null>(null);
   const idleTimerRef = useRef<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const hasRestoredRef = useRef(false); // ADD THIS - track if we've restored data
 
-  // Load saved form data on mount (if exists from page refresh)
-  const savedData = loadSavedFormData();
-  const form = usePatientForm(savedData || undefined);
+  const form = usePatientForm();
   const router = useRouter();
 
   // Initialize patient ID on mount
@@ -112,19 +110,52 @@ export default function PatientPage() {
   const patientWS = usePatientWebSocket(patientId);
   const dashboardWS = useDashboardWebSocket(patientId);
 
+  useEffect(() => {
+    if (!patientId || hasRestoredRef.current) return;
+
+    const savedData = loadSavedFormData();
+    if (savedData) {
+      console.log("[Patient] Restoring saved form data");
+      hasRestoredRef.current = true; // Mark as restored
+
+      // Restore form values
+      form.reset(savedData);
+
+      // Send current progress to dashboard after WebSocket connects
+      const timer = setTimeout(() => {
+        const summary = {
+          firstName: savedData.firstName || null,
+          lastName: savedData.lastName || null,
+          progress: calculateProgress(savedData),
+        };
+
+        const summaryMessage = createWSMessage("summary", patientId, summary);
+        dashboardWS.sendImmediate(summaryMessage);
+
+        const snapshotMessage = createWSMessage(
+          "formSnapshot",
+          patientId,
+          savedData
+        );
+        patientWS.send(snapshotMessage);
+
+        console.log("[Patient] Synced restored data with server");
+      }, 1500);
+
+      return () => clearTimeout(timer);
+    } else {
+      hasRestoredRef.current = true;
+    }
+  }, [patientId]);
+
   // Send status update - memoized properly
   const sendStatusUpdate = useCallback(
     (status: ActivePatientStatus) => {
       if (!patientId) return;
 
       const message = createWSMessage("status", patientId, undefined, status);
-
-      // Send to dashboard (for staff overview)
       dashboardWS.sendImmediate(message);
-
-      // ALSO send to patient's own room (for staff viewing this specific patient)
       patientWS.send(message);
-
       setCurrentStatus(status);
 
       console.log(`[Patient] Status changed to: ${status}`);
@@ -132,16 +163,13 @@ export default function PatientPage() {
     [patientId, dashboardWS, patientWS]
   );
 
-  // Create a stable ref for sendStatusUpdate to avoid effect re-runs
   const sendStatusRef = useRef(sendStatusUpdate);
 
   useEffect(() => {
     sendStatusRef.current = sendStatusUpdate;
   }, [sendStatusUpdate]);
 
-  // Handle keyboard input (typing) - triggers "updating"
   const handleKeyboardInput = useCallback(() => {
-    // Clear existing timers
     if (activityTimerRef.current) {
       window.clearTimeout(activityTimerRef.current);
     }
@@ -149,50 +177,40 @@ export default function PatientPage() {
       window.clearTimeout(idleTimerRef.current);
     }
 
-    // Send "updating" status immediately when typing
     if (currentStatus !== "updating") {
       sendStatusRef.current("updating");
     }
 
-    // After 2 seconds of no typing, switch to "online"
     activityTimerRef.current = window.setTimeout(() => {
       sendStatusRef.current("online");
     }, ONLINE_TIMEOUT);
 
-    // After 30 seconds of no typing, switch to "idle"
     idleTimerRef.current = window.setTimeout(() => {
       sendStatusRef.current("idle");
     }, IDLE_TIMEOUT);
   }, [currentStatus]);
 
-  // Handle focus (just being in the form) - maintains "online"
   const handleInputFocus = useCallback(() => {
-    // Clear idle timer when user focuses on input
     if (idleTimerRef.current) {
       window.clearTimeout(idleTimerRef.current);
     }
 
-    // If user was idle, set back to online
     if (currentStatus === "idle") {
       sendStatusRef.current("online");
     }
 
-    // Reset idle timer
     idleTimerRef.current = window.setTimeout(() => {
       sendStatusRef.current("idle");
     }, IDLE_TIMEOUT);
   }, [currentStatus]);
 
-  // Send initial "online" status and setup global idle detection
   useEffect(() => {
     if (!patientId) return;
 
-    // Send initial status after connection
     const timer = setTimeout(() => {
       sendStatusRef.current("online");
     }, 1000);
 
-    // Store idle timer in the ref so it can be cleared by other functions
     idleTimerRef.current = window.setTimeout(() => {
       sendStatusRef.current("idle");
     }, IDLE_TIMEOUT);
@@ -206,7 +224,6 @@ export default function PatientPage() {
     };
   }, [patientId]);
 
-  // Send full snapshot to patient room
   const sendFullSnapshot = useCallback(
     (values: PatientFormValues) => {
       const message = createWSMessage("formSnapshot", patientId, values);
@@ -215,7 +232,6 @@ export default function PatientPage() {
     [patientId, patientWS]
   );
 
-  // Send lightweight summary to dashboard
   const sendDashboardSummary = useCallback(
     (values: Partial<PatientFormValues>) => {
       const summary = {
@@ -230,18 +246,16 @@ export default function PatientPage() {
     [patientId, dashboardWS]
   );
 
-  // Watch form changes and send updates + save to sessionStorage
+  // Watch form changes - this won't trigger on the initial restore anymore
   useEffect(() => {
     const subscription = form.watch((values) => {
-      if (!patientId) return;
+      if (!patientId || !hasRestoredRef.current) return; // Wait until restored
 
-      // Save to sessionStorage (auto-clears when tab closes)
+      // Save to sessionStorage
       saveFormData(values);
 
-      // Always send summary to dashboard
+      // Send updates
       sendDashboardSummary(values);
-
-      // Send full snapshot
       sendFullSnapshot(values as PatientFormValues);
     });
 
@@ -252,7 +266,7 @@ export default function PatientPage() {
   const onSubmit = useCallback(
     async (values: PatientFormValues) => {
       setIsSubmitting(true);
-      
+
       try {
         // Send submit message to patient room
         const submitMessage = createWSMessage("submit", patientId, {
@@ -276,7 +290,7 @@ export default function PatientPage() {
         clearSavedFormData();
 
         // Small delay to ensure WebSocket messages are sent
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, 500));
 
         // Redirect to thank you page
         router.push("/thank-you");
@@ -337,7 +351,7 @@ export default function PatientPage() {
       />
 
       <div className="text-xs text-gray-400 text-center">
-        {isSubmitting 
+        {isSubmitting
           ? "Submitting your form..."
           : "Your activity is monitored in real-time by staff"}
       </div>

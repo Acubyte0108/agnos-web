@@ -40,7 +40,7 @@ type PatientInfo = {
   summary: PatientSummary;
   ts: number;
   isLiveConnected?: boolean;
-  status: PatientStatus; // Changed from isOnline
+  status: PatientStatus;
   lastActivity: number;
 };
 
@@ -331,7 +331,7 @@ function useStaffDashboard() {
     onMessage: handleDashboardMessage,
   });
 
-  return { patients, setPatients };
+  return { patients };
 }
 
 function usePatientLiveConnections() {

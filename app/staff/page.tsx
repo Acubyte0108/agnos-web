@@ -21,7 +21,7 @@ function formatTimeAgo(timestamp: number): string {
 }
 
 export default function StaffDashboard() {
-  const { patients, setPatients } = useStaffDashboard();
+  const { patients } = useStaffDashboard();
 
   const patientList = Object.entries(patients).sort(([, a], [, b]) => {
     // Sort by status priority, then by timestamp
@@ -154,8 +154,10 @@ export default function StaffDashboard() {
                       {/* Last activity */}
                       <span className="text-gray-500 text-xs">
                         {patient.status === "disconnected"
-                          ? `Left ${formatTimeAgo(patient.ts)}`
-                          : `Active ${formatTimeAgo(patient.lastActivity)}`}
+                          ? `Left just now`
+                          : patient.status === "idle"
+                          ? `Last active ${formatTimeAgo(patient.lastActivity)}`
+                          : `Active`}
                       </span>
 
                       {/* Live connection indicator */}

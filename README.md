@@ -49,7 +49,3 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 - TypeScript
 - Tailwind CSS
 - WebSocket for real-time communication
-
----
-
-Built with Next.js and ❤️

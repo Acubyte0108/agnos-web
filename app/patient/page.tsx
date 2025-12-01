@@ -115,12 +115,23 @@ export default function PatientPage() {
     if (!patientId || hasRestoredRef.current) return;
 
     const savedData = loadSavedFormData();
+
     if (savedData) {
       console.log("[Patient] Restoring saved form data");
-      hasRestoredRef.current = true; // Mark as restored
+      hasRestoredRef.current = true;
 
-      // Restore form values
-      form.reset(savedData);
+      // Small delay to ensure form is fully mounted
+      setTimeout(() => {
+        form.reset(savedData, {
+          keepErrors: false,
+          keepDirty: false,
+          keepIsSubmitted: false,
+          keepTouched: false,
+          keepIsValid: false,
+          keepSubmitCount: false,
+        });
+        console.log("[Patient] Form reset complete, values:", form.getValues());
+      }, 100);
 
       // Send current progress to dashboard after WebSocket connects
       const timer = setTimeout(() => {
@@ -147,7 +158,7 @@ export default function PatientPage() {
     } else {
       hasRestoredRef.current = true;
     }
-  }, [patientId]);
+  }, [patientId, form]);
 
   // Send status update - memoized properly
   const sendStatusUpdate = useCallback(

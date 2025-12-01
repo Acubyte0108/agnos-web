@@ -14,6 +14,7 @@ import { usePatientForm, PatientFormValues } from "@/hooks/use-patient-form";
 import { useRouter } from "next/navigation";
 
 const PATIENT_ID_STORAGE_KEY = "patientId";
+const PATIENT_FORM_DATA_KEY = "patientFormData"; // Now in sessionStorage
 const IDLE_TIMEOUT = 30000; // 30 seconds
 const ONLINE_TIMEOUT = 2000; // 2 seconds
 
@@ -32,8 +33,46 @@ function generatePatientId(): string {
   return newId;
 }
 
+// Load saved form data from sessionStorage
+function loadSavedFormData(): Partial<PatientFormValues> | null {
+  if (typeof window === "undefined") return null;
+  
+  try {
+    const saved = sessionStorage.getItem(PATIENT_FORM_DATA_KEY);
+    if (saved) {
+      console.log("[Patient] Restored form data from session");
+      return JSON.parse(saved);
+    }
+  } catch (error) {
+    console.error("[Patient] Error loading saved form data:", error);
+  }
+  return null;
+}
+
+// Save form data to sessionStorage
+function saveFormData(data: Partial<PatientFormValues>) {
+  if (typeof window === "undefined") return;
+  
+  try {
+    sessionStorage.setItem(PATIENT_FORM_DATA_KEY, JSON.stringify(data));
+  } catch (error) {
+    console.error("[Patient] Error saving form data:", error);
+  }
+}
+
+// Clear saved form data from sessionStorage
+function clearSavedFormData() {
+  if (typeof window === "undefined") return;
+  
+  try {
+    sessionStorage.removeItem(PATIENT_FORM_DATA_KEY);
+    console.log("[Patient] Cleared form data");
+  } catch (error) {
+    console.error("[Patient] Error clearing form data:", error);
+  }
+}
+
 function calculateProgress(values: Partial<PatientFormValues>): number {
-  // List of required fields (excluding optional fields)
   const requiredFields: (keyof PatientFormValues)[] = [
     "firstName",
     "lastName",
@@ -59,7 +98,9 @@ export default function PatientPage() {
   const idleTimerRef = useRef<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const form = usePatientForm();
+  // Load saved form data on mount (if exists from page refresh)
+  const savedData = loadSavedFormData();
+  const form = usePatientForm(savedData || undefined);
   const router = useRouter();
 
   // Initialize patient ID on mount
@@ -90,6 +131,7 @@ export default function PatientPage() {
     },
     [patientId, dashboardWS, patientWS]
   );
+
   // Create a stable ref for sendStatusUpdate to avoid effect re-runs
   const sendStatusRef = useRef(sendStatusUpdate);
 
@@ -141,7 +183,7 @@ export default function PatientPage() {
     }, IDLE_TIMEOUT);
   }, [currentStatus]);
 
-  /// Send initial "online" status and setup global idle detection
+  // Send initial "online" status and setup global idle detection
   useEffect(() => {
     if (!patientId) return;
 
@@ -188,20 +230,18 @@ export default function PatientPage() {
     [patientId, dashboardWS]
   );
 
-  // Watch form changes and send updates
+  // Watch form changes and send updates + save to sessionStorage
   useEffect(() => {
     const subscription = form.watch((values) => {
       if (!patientId) return;
 
+      // Save to sessionStorage (auto-clears when tab closes)
+      saveFormData(values);
+
       // Always send summary to dashboard
       sendDashboardSummary(values);
 
-      // Send full snapshot if enough fields are filled
-      // const filledCount = Object.values(values).filter(Boolean).length;
-      // if (filledCount >= FULL_SNAPSHOT_THRESHOLD) {
-      //   sendFullSnapshot(values as PatientFormValues);
-      // }
-
+      // Send full snapshot
       sendFullSnapshot(values as PatientFormValues);
     });
 
@@ -231,6 +271,9 @@ export default function PatientPage() {
         dashboardWS.sendImmediate(dashboardMessage);
 
         console.log("[Patient] Form submitted successfully");
+
+        // Clear saved form data
+        clearSavedFormData();
 
         // Small delay to ensure WebSocket messages are sent
         await new Promise(resolve => setTimeout(resolve, 500));
@@ -289,8 +332,8 @@ export default function PatientPage() {
         onSubmit={onSubmit}
         onInputFocus={handleInputFocus}
         onKeyDown={handleKeyboardInput}
-        disabled={isSubmitting} // ADD THIS
-        submitButtonText={isSubmitting ? "Submitting..." : "Submit Form"} // ADD THIS
+        disabled={isSubmitting}
+        submitButtonText={isSubmitting ? "Submitting..." : "Submit Form"}
       />
 
       <div className="text-xs text-gray-400 text-center">

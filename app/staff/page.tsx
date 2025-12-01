@@ -4,42 +4,8 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { useStaffDashboard, PatientStatus } from "@/hooks/use-web-socket";
-
-function getStatusBadge(status: PatientStatus) {
-  const styles = {
-    updating: {
-      bg: "bg-blue-100",
-      text: "text-blue-800",
-      dot: "bg-blue-500",
-      label: "✏️ Updating",
-      animation: "animate-pulse",
-    },
-    online: {
-      bg: "bg-green-100",
-      text: "text-green-800",
-      dot: "bg-green-500",
-      label: "🟢 Online",
-      animation: "",
-    },
-    idle: {
-      bg: "bg-yellow-100",
-      text: "text-yellow-800",
-      dot: "bg-yellow-500",
-      label: "💤 Idle",
-      animation: "",
-    },
-    disconnected: {
-      bg: "bg-gray-100",
-      text: "text-gray-600",
-      dot: "bg-gray-400",
-      label: "⚫ Offline",
-      animation: "",
-    },
-  };
-
-  return styles[status] || styles.disconnected;
-}
+import { useStaffDashboard } from "@/hooks/use-web-socket";
+import { getStatusStyle, StatusDot } from "@/components/status-badge";
 
 function formatTimeAgo(timestamp: number): string {
   const seconds = Math.floor((Date.now() - timestamp) / 1000);
@@ -130,11 +96,11 @@ export default function StaffDashboard() {
       ) : (
         <div className="space-y-3">
           {patientList.map(([id, patient]) => {
-            const statusStyle = getStatusBadge(patient.status);
+            const statusStyle = getStatusStyle(patient.status);
             const isSubmitted = patient.summary?.submitted === true;
             const isDisconnected = patient.status === "disconnected";
             const isFadingOut = isSubmitted || isDisconnected;
-            
+
             return (
               <Card
                 key={id}
@@ -153,10 +119,7 @@ export default function StaffDashboard() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-2 flex-wrap">
                       {/* Animated status dot */}
-                      <span
-                        className={`inline-block w-3 h-3 rounded-full ${statusStyle.dot} ${statusStyle.animation}`}
-                        title={statusStyle.label}
-                      />
+                      <StatusDot status={patient.status} />
 
                       <h3 className="text-base sm:text-lg font-semibold truncate">
                         {patient.summary?.firstName || "Anonymous"}{" "}

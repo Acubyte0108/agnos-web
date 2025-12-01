@@ -12,6 +12,7 @@ import {
 import { PatientForm } from "@/components/form/patient-form";
 import { usePatientForm, PatientFormValues } from "@/hooks/use-patient-form";
 import { useRouter } from "next/navigation";
+import { StatusBadge } from "@/components/status-badge";
 
 const PATIENT_ID_STORAGE_KEY = "patientId";
 const PATIENT_FORM_DATA_KEY = "patientFormData"; // Now in sessionStorage
@@ -303,26 +304,6 @@ export default function PatientPage() {
     [patientId, patientWS, dashboardWS, router]
   );
 
-  // Get status badge styling
-  const getStatusStyle = (status: ActivePatientStatus) => {
-    const styles = {
-      updating: {
-        bg: "bg-blue-100",
-        text: "text-blue-800",
-        label: "✏️ Updating",
-      },
-      online: {
-        bg: "bg-green-100",
-        text: "text-green-800",
-        label: "🟢 Online",
-      },
-      idle: { bg: "bg-yellow-100", text: "text-yellow-800", label: "💤 Idle" },
-    };
-    return styles[status];
-  };
-
-  const statusStyle = getStatusStyle(currentStatus);
-
   return (
     <div className="max-w-lg mx-auto p-6 space-y-6">
       <div>
@@ -331,13 +312,7 @@ export default function PatientPage() {
           <p className="text-sm text-gray-500">
             Patient ID: {patientId || "Loading..."}
           </p>
-          {patientId && (
-            <Badge
-              className={`${statusStyle.bg} ${statusStyle.text} border-0 text-xs`}
-            >
-              {statusStyle.label}
-            </Badge>
-          )}
+          {patientId && <StatusBadge status={currentStatus} />}
         </div>
       </div>
 

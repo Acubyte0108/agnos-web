@@ -29,10 +29,8 @@ export default function StaffPatientView({
 
   const form = usePatientForm();
 
-  // Update form whenever formData changes
   useEffect(() => {
     if (Object.keys(formData).length > 0) {
-      console.log("[Staff Live View] Updating form with:", formData);
       form.reset(formData, {
         keepErrors: false,
         keepDirty: false,
@@ -44,38 +42,25 @@ export default function StaffPatientView({
     }
   }, [formData, form]);
 
-  // Handle incoming WebSocket messages
   const handleMessage = useCallback(
     (event: MessageEvent) => {
       try {
         const msg: WebSocketMessage = JSON.parse(event.data);
-        console.log("[Staff Live View] Received message:", msg.type);
 
-        // Handle full form snapshots
         if (msg.type === "formSnapshot" && msg.payload) {
           const payloadData = msg.payload as Partial<PatientFormValues>;
-          console.log("[Staff Live View] Received form data:", payloadData);
           setFormData(payloadData);
           setLastUpdate(new Date());
-        }
-        // Handle status updates (including disconnected!)
-        else if (msg.type === "status" && msg.state) {
+        } else if (msg.type === "status" && msg.state) {
           const newStatus = msg.state as PatientStatus;
-          console.log("[Staff Live View] Status update:", newStatus);
           setCurrentStatus(newStatus);
-        }
-
-        // Handle submission from patient
-        else if (msg.type === "submit") {
+        } else if (msg.type === "submit") {
           const payload = msg.payload as Partial<PatientFormValues>;
           const patientName =
             payload.firstName && payload.lastName
               ? `${payload.firstName} ${payload.lastName}`
               : patientId.substring(0, 8);
 
-          console.log("[Staff Live View] Patient submitted form");
-
-          // Dismiss any existing success toasts before showing new one
           toast.dismiss();
 
           toast.success("Form Submitted!", {
@@ -88,13 +73,12 @@ export default function StaffPatientView({
           }, 1000);
         }
       } catch (err) {
-        console.warn("[Staff Live View] Invalid message:", err);
+        console.error("[Staff Live View Page] Error handling message:", err);
       }
     },
     [router, patientId, form]
   );
 
-  // Connect to patient's WebSocket room
   const { isConnected } = usePatientWebSocket(patientId, {
     onMessage: handleMessage,
   });

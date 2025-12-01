@@ -30,10 +30,7 @@ type PatientSummary = {
   submitted?: boolean;
 };
 
-// Active patient statuses (what the patient can be while connected)
 type ActivePatientStatus = "online" | "updating" | "idle";
-
-// All patient statuses (includes disconnected for staff view)
 type PatientStatus = ActivePatientStatus | "disconnected";
 
 type PatientInfo = {
@@ -81,36 +78,21 @@ function useWebSocket({
     wsRef.current = ws;
 
     ws.onopen = () => {
-      console.log(`[${logPrefix}] Connected to room: ${room}`);
       onOpen?.(ws);
     };
 
     ws.onerror = (error) => {
-      // Ignore errors during intentional unmount
-      if (isUnmountingRef.current) {
-        return;
-      }
+      if (isUnmountingRef.current) return;
 
-      // Only log real errors
       if (
         ws.readyState !== WebSocket.CLOSING &&
         ws.readyState !== WebSocket.CLOSED
       ) {
-        console.error(`[${logPrefix}] WebSocket error:`, error);
         onError?.(error);
       }
     };
 
-    ws.onclose = (event) => {
-      if (isUnmountingRef.current) {
-        console.log(`[${logPrefix}] Closed on unmount (normal)`);
-      } else if (event.code === 1000) {
-        console.log(`[${logPrefix}] Closed normally`);
-      } else {
-        console.warn(
-          `[${logPrefix}] Closed unexpectedly - Code: ${event.code}`
-        );
-      }
+    ws.onclose = () => {
       onClose?.();
     };
 
@@ -129,16 +111,11 @@ function useWebSocket({
     };
   }, [room, clientId, onOpen, onMessage, onError, onClose, logPrefix]);
 
-  const send = useCallback(
-    (message: string) => {
-      if (wsRef.current?.readyState === WebSocket.OPEN) {
-        wsRef.current.send(message);
-      } else {
-        console.warn(`[${logPrefix}] Cannot send - WebSocket not open`);
-      }
-    },
-    [logPrefix]
-  );
+  const send = useCallback((message: string) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(message);
+    }
+  }, []);
 
   const isConnected = useCallback(() => {
     return wsRef.current?.readyState === WebSocket.OPEN;
@@ -170,20 +147,18 @@ function usePatientWebSocket(
 function useDashboardWebSocket(patientId: string) {
   const debounceTimer = useRef<number | null>(null);
 
-  // Memoize the onOpen callback so it doesn't change on every render
   const handleOpen = useCallback(
     (ws: WebSocket) => {
-      // Send initial presence when connected
       ws.send(createWSMessage("status", patientId, undefined, "online"));
     },
     [patientId]
-  ); // Only recreate if patientId changes
+  );
 
   const { send: sendImmediate, ...rest } = useWebSocket({
     room: "dashboard",
     clientId: patientId,
     logPrefix: "Dashboard WS",
-    onOpen: handleOpen, // Use the memoized callback
+    onOpen: handleOpen,
   });
 
   const sendDebounced = useCallback(
@@ -200,7 +175,6 @@ function useDashboardWebSocket(patientId: string) {
     [sendImmediate]
   );
 
-  // Cleanup timer on unmount
   useEffect(() => {
     return () => {
       if (debounceTimer.current) {
@@ -215,15 +189,11 @@ function useDashboardWebSocket(patientId: string) {
 function useStaffDashboard() {
   const [patients, setPatients] = useState<Record<string, PatientInfo>>({});
 
-  // Generate staff ID synchronously
   const staffId = useMemo(() => {
     if (typeof window === "undefined") return "staff-ssr";
 
     const storedId = sessionStorage.getItem("staffId");
-    if (storedId) {
-      console.log("[Staff Dashboard] Using stored staff ID:", storedId);
-      return storedId;
-    }
+    if (storedId) return storedId;
 
     const newId =
       crypto && typeof crypto.randomUUID === "function"
@@ -231,16 +201,13 @@ function useStaffDashboard() {
         : `staff-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 
     sessionStorage.setItem("staffId", newId);
-    console.log("[Staff Dashboard] Generated new staff ID:", newId);
     return newId;
   }, []);
 
   const handleDashboardMessage = useCallback((event: MessageEvent) => {
     try {
       const msg: WebSocketMessage = JSON.parse(event.data);
-      console.log("[Staff Dashboard] Received message:", msg.type, msg);
 
-      // Handle initial state (list of patients in dashboard snapshot)
       if (msg.type === "initialState" && Array.isArray(msg.payload)) {
         const initialPatients: Record<string, PatientInfo> = {};
 
@@ -254,21 +221,10 @@ function useStaffDashboard() {
         });
 
         setPatients(initialPatients);
-        console.log(
-          `[Staff Dashboard] Loaded ${msg.payload.length} active patients`,
-          initialPatients
-        );
         return;
       }
 
-      // Handle summary updates (form data)
       if (msg.type === "summary" && msg.clientId) {
-        console.log(
-          "[Staff Dashboard] Summary update for:",
-          msg.clientId,
-          msg.payload
-        );
-
         setPatients((prev) => ({
           ...prev,
           [msg.clientId]: {
@@ -280,13 +236,7 @@ function useStaffDashboard() {
         }));
       }
 
-      // Handle status updates
       if (msg.type === "status" && msg.clientId && msg.state) {
-        console.log(
-          "[Staff Dashboard] Status update:",
-          msg.clientId,
-          msg.state
-        );
         const validStatuses = ["online", "updating", "idle", "disconnected"];
         if (validStatuses.includes(msg.state)) {
           setPatients((prev) => ({
@@ -301,10 +251,7 @@ function useStaffDashboard() {
         }
       }
 
-      // Handle patient connected
       if (msg.type === "patientConnected" && msg.clientId) {
-        console.log("[Staff Dashboard] Patient connected:", msg.clientId);
-
         setPatients((prev) => ({
           ...prev,
           [msg.clientId]: {
@@ -316,10 +263,7 @@ function useStaffDashboard() {
         }));
       }
 
-      // Handle patient disconnected
       if (msg.type === "patientDisconnected" && msg.clientId) {
-        console.log("[Staff Dashboard] Patient disconnected:", msg.clientId);
-
         setPatients((prev) => ({
           ...prev,
           [msg.clientId]: {
@@ -330,10 +274,7 @@ function useStaffDashboard() {
         }));
       }
 
-      // NEW: Handle patient removed (server tells us to remove it)
       if (msg.type === "patientRemoved" && msg.clientId) {
-        console.log("[Staff Dashboard] Patient removed:", msg.clientId);
-
         setPatients((prev) => {
           const updated = { ...prev };
           delete updated[msg.clientId];
@@ -341,7 +282,10 @@ function useStaffDashboard() {
         });
       }
     } catch (err) {
-      console.warn("[Staff Dashboard] Invalid message:", err);
+      console.error(
+        "[Staff Dashboard Handler] Error handling dashboard message:",
+        err
+      );
     }
   }, []);
 
@@ -367,24 +311,15 @@ function usePatientLiveConnections() {
         timestamp: number
       ) => void
     ) => {
-      // Don't reconnect if already connected
-      if (socketsRef.current[patientId]) {
-        console.log(`[Patient Live] Already connected to ${patientId}`);
-        return;
-      }
+      if (socketsRef.current[patientId]) return;
 
       const ws = connectWS(patientId);
       socketsRef.current[patientId] = ws;
-
-      ws.onopen = () => {
-        console.log(`[Patient Live] Connected to ${patientId}`);
-      };
 
       ws.onmessage = (e) => {
         try {
           const msg: WebSocketMessage = JSON.parse(e.data);
 
-          // Handle full snapshots and updates
           if (
             msg.type === "formSnapshot" ||
             msg.type === "submit" ||
@@ -397,19 +332,14 @@ function usePatientLiveConnections() {
             );
           }
         } catch (err) {
-          console.warn(
-            `[Patient Live] Invalid message from ${patientId}:`,
+          console.error(
+            "[Patient Live Connections] Error handling patient live message:",
             err
           );
         }
       };
 
-      ws.onerror = (error) => {
-        console.error(`[Patient Live] Error with ${patientId}:`, error);
-      };
-
       ws.onclose = () => {
-        console.log(`[Patient Live] Disconnected from ${patientId}`);
         delete socketsRef.current[patientId];
       };
     },
@@ -431,7 +361,6 @@ function usePatientLiveConnections() {
     socketsRef.current = {};
   }, []);
 
-  // Cleanup all connections on unmount
   useEffect(() => {
     return () => {
       disconnectAll();

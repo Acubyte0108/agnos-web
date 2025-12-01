@@ -24,7 +24,6 @@ export default function StaffDashboard() {
   const { patients } = useStaffDashboard();
 
   const patientList = Object.entries(patients).sort(([, a], [, b]) => {
-    // Sort by status priority, then by timestamp
     const statusPriority = { updating: 0, online: 1, idle: 2, disconnected: 3 };
     const aPriority = statusPriority[a.status];
     const bPriority = statusPriority[b.status];
@@ -44,7 +43,6 @@ export default function StaffDashboard() {
 
   return (
     <div className="max-w-4xl mx-auto p-4 sm:p-6">
-      {/* Header with Stats */}
       <div className="mb-6">
         <h1 className="text-xl sm:text-2xl font-semibold mb-3">
           Staff Dashboard
@@ -86,7 +84,6 @@ export default function StaffDashboard() {
         </div>
       </div>
 
-      {/* Patient List */}
       {patientList.length === 0 ? (
         <Card className="p-6 sm:p-8 text-center text-gray-500">
           <div className="text-3xl sm:text-4xl mb-2">👥</div>
@@ -116,10 +113,8 @@ export default function StaffDashboard() {
                 } ${isFadingOut ? "animate-fade-out" : ""}`}
               >
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 sm:gap-4">
-                  {/* Patient Info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-2 flex-wrap">
-                      {/* Animated status dot */}
                       <StatusDot status={patient.status} />
 
                       <h3 className="text-base sm:text-lg font-semibold truncate">
@@ -127,14 +122,12 @@ export default function StaffDashboard() {
                         {patient.summary?.lastName || ""}
                       </h3>
 
-                      {/* Submitted badge */}
                       {isSubmitted && (
                         <Badge className="bg-green-600 text-white animate-pulse text-xs">
                           ✓ Submitted
                         </Badge>
                       )}
 
-                      {/* Disconnected indicator */}
                       {isDisconnected && !isSubmitted && (
                         <Badge className="bg-gray-500 text-white text-xs">
                           Disconnected
@@ -143,7 +136,6 @@ export default function StaffDashboard() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
-                      {/* Status badge */}
                       <Badge
                         variant="outline"
                         className={`${statusStyle.bg} ${statusStyle.text} border-0 text-xs`}
@@ -151,7 +143,6 @@ export default function StaffDashboard() {
                         {statusStyle.label}
                       </Badge>
 
-                      {/* Last activity */}
                       <span className="text-gray-500 text-xs">
                         {patient.status === "disconnected"
                           ? `Left just now`
@@ -160,7 +151,6 @@ export default function StaffDashboard() {
                           : `Active`}
                       </span>
 
-                      {/* Live connection indicator */}
                       {patient.isLiveConnected && (
                         <Badge
                           variant="outline"
@@ -170,16 +160,13 @@ export default function StaffDashboard() {
                         </Badge>
                       )}
 
-                      {/* Patient ID (short version) */}
                       <span className="text-gray-400 text-xs font-mono">
                         {id.substring(0, 8)}...
                       </span>
                     </div>
                   </div>
 
-                  {/* Actions */}
                   <div className="flex items-center gap-2 sm:gap-2 shrink-0 justify-between sm:justify-start">
-                    {/* Progress badge */}
                     <div className="text-center min-w-[60px] sm:min-w-[70px]">
                       <Badge
                         variant={isSubmitted ? "default" : "secondary"}
@@ -197,7 +184,6 @@ export default function StaffDashboard() {
                       </Badge>
                     </div>
 
-                    {/* View Live button - UPDATED */}
                     {canViewLive ? (
                       <Link href={`/staff/${id}`}>
                         <Button

@@ -45,54 +45,54 @@ export default function StaffPatientView({
   }, [formData, form]);
 
   // Handle incoming WebSocket messages
-  const handleMessage = useCallback((event: MessageEvent) => {
-    try {
-      const msg: WebSocketMessage = JSON.parse(event.data);
-      console.log("[Staff Live View] Received message:", msg.type);
+  const handleMessage = useCallback(
+    (event: MessageEvent) => {
+      try {
+        const msg: WebSocketMessage = JSON.parse(event.data);
+        console.log("[Staff Live View] Received message:", msg.type);
 
-      // Handle full form snapshots
-      if (msg.type === "formSnapshot" && msg.payload) {
-        const payloadData = msg.payload as Partial<PatientFormValues>;
-        console.log("[Staff Live View] Received form data:", payloadData);
-        setFormData(payloadData);
-        setLastUpdate(new Date());
-      }
-      // Handle status updates (including disconnected!)
-      else if (msg.type === "status" && msg.state) {
-        const newStatus = msg.state as PatientStatus;
-        console.log("[Staff Live View] Status update:", newStatus);
-        setCurrentStatus(newStatus);
-        
-        // Show toast for disconnection
-        if (newStatus === "disconnected") {
-          toast.warning("Patient Disconnected", {
-            description: "The patient has left the session or refreshed the page.",
+        // Handle full form snapshots
+        if (msg.type === "formSnapshot" && msg.payload) {
+          const payloadData = msg.payload as Partial<PatientFormValues>;
+          console.log("[Staff Live View] Received form data:", payloadData);
+          setFormData(payloadData);
+          setLastUpdate(new Date());
+        }
+        // Handle status updates (including disconnected!)
+        else if (msg.type === "status" && msg.state) {
+          const newStatus = msg.state as PatientStatus;
+          console.log("[Staff Live View] Status update:", newStatus);
+          setCurrentStatus(newStatus);
+        }
+
+        // Handle submission from patient
+        else if (msg.type === "submit") {
+          const payload = msg.payload as Partial<PatientFormValues>;
+          const patientName =
+            payload.firstName && payload.lastName
+              ? `${payload.firstName} ${payload.lastName}`
+              : patientId.substring(0, 8);
+
+          console.log("[Staff Live View] Patient submitted form");
+
+          // Dismiss any existing success toasts before showing new one
+          toast.dismiss();
+
+          toast.success("Form Submitted!", {
+            description: `Patient ${patientName} has successfully submitted their form.`,
             duration: 5000,
           });
-        }
-      }
-      // Handle submission from patient
-      else if (msg.type === "submit") {
-        const payload = msg.payload as Partial<PatientFormValues>;
-        const patientName = payload.firstName && payload.lastName
-          ? `${payload.firstName} ${payload.lastName}`
-          : patientId.substring(0, 8);
-        
-        console.log("[Staff Live View] Patient submitted form");
-        
-        toast.success("Form Submitted!", {
-          description: `Patient ${patientName} has successfully submitted their form.`,
-          duration: 5000,
-        });
 
-        setTimeout(() => {
-          router.push("/staff");
-        }, 1000);
+          setTimeout(() => {
+            router.push("/staff");
+          }, 1000);
+        }
+      } catch (err) {
+        console.warn("[Staff Live View] Invalid message:", err);
       }
-    } catch (err) {
-      console.warn("[Staff Live View] Invalid message:", err);
-    }
-  }, [router, patientId, form]);
+    },
+    [router, patientId, form]
+  );
 
   // Connect to patient's WebSocket room
   const { isConnected } = usePatientWebSocket(patientId, {
@@ -125,7 +125,7 @@ export default function StaffPatientView({
       <PatientForm
         form={form}
         onSubmit={() => {}}
-        isViewMode={true} 
+        isViewMode={true}
         submitButtonText="Form Preview (Read-only)"
       />
 

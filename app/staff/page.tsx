@@ -100,6 +100,7 @@ export default function StaffDashboard() {
             const isSubmitted = patient.summary?.submitted === true;
             const isDisconnected = patient.status === "disconnected";
             const isFadingOut = isSubmitted || isDisconnected;
+            const canViewLive = !isDisconnected && !isSubmitted;
 
             return (
               <Card
@@ -194,22 +195,27 @@ export default function StaffDashboard() {
                       </Badge>
                     </div>
 
-                    {/* View Live button */}
-                    <Link href={`/staff/${id}`}>
+                    {/* View Live button - UPDATED */}
+                    {canViewLive ? (
+                      <Link href={`/staff/${id}`}>
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="cursor-pointer text-xs sm:text-sm"
+                        >
+                          <span className="hidden sm:inline">View Live</span>
+                        </Button>
+                      </Link>
+                    ) : (
                       <Button
-                        variant="default"
+                        variant="outline"
                         size="sm"
-                        disabled={patient.status === "disconnected"}
-                        className="cursor-pointer text-xs sm:text-sm"
+                        disabled
+                        className="text-xs sm:text-sm cursor-not-allowed"
                       >
-                        <span className="hidden sm:inline">
-                          {isSubmitted ? "View Details" : "View Live"}
-                        </span>
-                        <span className="sm:hidden">
-                          {isSubmitted ? "Details" : "View"}
-                        </span>
+                        <span className="hidden sm:inline">View Live</span>
                       </Button>
-                    </Link>
+                    )}
                   </div>
                 </div>
               </Card>

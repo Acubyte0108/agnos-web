@@ -38,7 +38,6 @@ type PatientStatus = ActivePatientStatus | "disconnected";
 
 type PatientInfo = {
   summary: PatientSummary;
-  ts: number;
   isLiveConnected?: boolean;
   status: PatientStatus;
   lastActivity: number;
@@ -248,7 +247,6 @@ function useStaffDashboard() {
         msg.payload.forEach((patient: any) => {
           initialPatients[patient.clientId] = {
             summary: patient.summary || {},
-            ts: patient.lastActivity || Date.now(),
             isLiveConnected: false,
             status: patient.status || "online",
             lastActivity: patient.lastActivity || Date.now(),
@@ -275,7 +273,6 @@ function useStaffDashboard() {
           ...prev,
           [msg.clientId]: {
             summary: msg.payload as PatientSummary,
-            ts: msg.timestamp || Date.now(),
             isLiveConnected: prev[msg.clientId]?.isLiveConnected,
             status: prev[msg.clientId]?.status || "online",
             lastActivity: Date.now(),
@@ -296,7 +293,6 @@ function useStaffDashboard() {
             ...prev,
             [msg.clientId]: {
               summary: prev[msg.clientId]?.summary || {},
-              ts: msg.timestamp || Date.now(),
               isLiveConnected: prev[msg.clientId]?.isLiveConnected,
               status: msg.state as PatientStatus,
               lastActivity: Date.now(),
@@ -313,7 +309,6 @@ function useStaffDashboard() {
           ...prev,
           [msg.clientId]: {
             summary: prev[msg.clientId]?.summary || {},
-            ts: msg.timestamp || Date.now(),
             isLiveConnected: prev[msg.clientId]?.isLiveConnected,
             status: "online",
             lastActivity: Date.now(),
@@ -329,7 +324,6 @@ function useStaffDashboard() {
           ...prev,
           [msg.clientId]: {
             ...prev[msg.clientId],
-            ts: msg.timestamp || Date.now(),
             status: "disconnected",
             lastActivity: prev[msg.clientId]?.lastActivity || Date.now(),
           },
